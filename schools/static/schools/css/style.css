@@ -1,0 +1,339 @@
+/* SchoolSync PWA Custom Styles */
+
+/* PWA Install Prompt */
+.install-prompt {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #007bff;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+    z-index: 1000;
+    font-size: 14px;
+    display: none;
+}
+
+.install-prompt.show {
+    display: block;
+}
+
+.install-prompt button {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+/* Sync Status Indicator */
+.sync-status {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 999;
+    display: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-weight: 500;
+}
+
+.sync-status.online {
+    background: #28a745;
+    color: white;
+    display: block;
+}
+
+.sync-status.offline {
+    background: #ffc107;
+    color: #212529;
+    display: block;
+}
+
+.sync-status.syncing {
+    background: #007bff;
+    color: white;
+    display: block;
+}
+
+.sync-status.error {
+    background: #dc3545;
+    color: white;
+    display: block;
+}
+
+/* Network Quality Indicator */
+.network-quality {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    padding: 6px 10px;
+    border-radius: 15px;
+    font-size: 11px;
+    z-index: 998;
+    display: none;
+    background: #6c757d;
+    color: white;
+}
+
+.network-quality.good {
+    background: #28a745;
+}
+
+.network-quality.poor {
+    background: #ffc107;
+    color: #212529;
+}
+
+.network-quality.offline {
+    background: #dc3545;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+
+    /* Touch-friendly buttons */
+    .btn {
+        min-height: 44px;
+        padding: 10px 16px;
+    }
+
+    /* Larger form inputs */
+    .form-control {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 12px 16px;
+    }
+
+    /* Pull-to-refresh indicator */
+    .pull-to-refresh {
+        position: absolute;
+        top: -50px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #007bff;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .pull-to-refresh.show {
+        opacity: 1;
+    }
+}
+
+/* Swipe gestures hint */
+.swipe-hint {
+    position: fixed;
+    bottom: 80px;
+    left: 20px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: none;
+    z-index: 1000;
+}
+
+.swipe-hint.show {
+    display: block;
+}
+
+/* Offline data indicators */
+.offline-indicator {
+    position: relative;
+}
+
+.offline-indicator::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    background: #ffc107;
+    border-radius: 50%;
+    border: 1px solid white;
+}
+
+.offline-indicator.online::after {
+    background: #28a745;
+}
+
+.offline-indicator.syncing::after {
+    background: #007bff;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #007bff;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error states */
+.error-boundary {
+    padding: 20px;
+    border: 1px solid #dc3545;
+    border-radius: 8px;
+    background: #f8d7da;
+    color: #721c24;
+    margin: 10px 0;
+}
+
+/* Conflict resolution modal */
+.conflict-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.conflict-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.conflict-options {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.conflict-option {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.conflict-option:hover {
+    background: #f8f9fa;
+}
+
+.conflict-option.selected {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* Performance optimizations */
+img {
+    max-width: 100%;
+    height: auto;
+    loading: lazy; /* Native lazy loading */
+}
+
+/* Responsive images for mobile bandwidth optimization */
+@media (max-width: 768px) {
+    .responsive-img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* Reduce image quality/size on mobile for faster loading */
+    .mobile-optimized {
+        image-rendering: -webkit-optimize-contrast; /* Better image rendering on mobile */
+    }
+}
+
+/* WebP support with fallbacks */
+.webp-support .webp-img {
+    background-image: url('data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA=='); /* Tiny WebP image for testing */
+}
+
+/* Image lazy loading placeholder */
+.image-placeholder {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 14px;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .navbar,
+    .btn,
+    .sync-status,
+    .install-prompt {
+        display: none !important;
+    }
+}

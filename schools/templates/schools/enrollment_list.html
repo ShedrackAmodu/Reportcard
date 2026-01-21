@@ -1,0 +1,60 @@
+{% extends 'schools/base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'enrollment_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Student Enrollment
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    {% if enrollments %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Class Section</th>
+                                    <th>School</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in enrollments %}
+                                <tr>
+                                    <td>{{ enrollment.student.get_full_name }}</td>
+                                    <td>{{ enrollment.class_section.name }}</td>
+                                    <td>{{ enrollment.school.name }}</td>
+                                    <td>
+                                        <a href="{% url 'enrollment_update' enrollment.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <a href="{% url 'enrollment_delete' enrollment.pk %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <p class="text-muted">No student enrollments found.</p>
+                        <a href="{% url 'enrollment_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create First Enrollment
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

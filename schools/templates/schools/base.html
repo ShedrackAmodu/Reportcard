@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SchoolSync - Multi-Tenant Report Card System{% endblock %}</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#007bff">
+    <meta name="description" content="Multi-Tenant Report Card System with offline capabilities">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SchoolSync">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="{% static 'schools/manifest.json' %}">
+    <link rel="apple-touch-icon" href="{% static 'schools/images/icon-192.png' %}">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'schools/css/style.css' %}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">SchoolSync</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
+                        </li>
+                        {% if user.role == 'super_admin' or user.role == 'admin' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'school_list' %}">Schools</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'user_list' %}">Users</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'class_section_list' %}">Classes</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'subject_list' %}">Subjects</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'grading_scale_list' %}">Grading</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'enrollment_list' %}">Enrollments</a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                        {% if user.role == 'super_admin' %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="schoolDropdown" role="button" data-bs-toggle="dropdown">
+                                {% if request.session.school_id %}
+                                    {% for school in schools %}
+                                        {% if school.id == request.session.school_id %}
+                                            {{ school.name }}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    Global View
+                                {% endif %}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'school_switch' %}">Switch School...</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'school_switch' %}?school_id=">Global View</a></li>
+                                {% for school in schools %}
+                                <li><a class="dropdown-item" href="{% url 'school_switch' %}?school_id={{ school.id }}">{{ school.name }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <span class="navbar-text me-3">
+                                Welcome, {{ user.get_full_name|default:user.username }} ({{ user.get_role_display }})
+                                {% if user.school %} - {{ user.school.name }}{% endif %}
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'register' %}">Register</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">Login</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container-fluid mt-4">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- PWA App Script -->
+    <script src="{% static 'schools/js/app.js' %}"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('{% static "schools/sw.js" %}')
+                    .then(function(registration) {
+                        console.log('Service Worker registered successfully:', registration.scope);
+
+                        // Handle updates
+                        registration.addEventListener('updatefound', function() {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', function() {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New content is available, show update prompt
+                                    showUpdateNotification();
+                                }
+                            });
+                        });
+                    })
+                    .catch(function(error) {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        function showUpdateNotification() {
+            // Create a simple update notification
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+            notification.innerHTML = `
+                <strong>Update Available</strong><br>
+                A new version is available. Refresh to update.
+                <button type="button" class="btn-close" onclick="location.reload()"></button>
+            `;
+            document.body.appendChild(notification);
+
+            // Auto-dismiss after 10 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 10000);
+        }
+
+        // Install prompt for PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+
+            // Show install button or notification
+            showInstallPrompt();
+        });
+
+        function showInstallPrompt() {
+            const installButton = document.createElement('button');
+            installButton.className = 'btn btn-primary position-fixed';
+            installButton.style.cssText = 'bottom: 20px; right: 20px; z-index: 9999;';
+            installButton.innerHTML = '<i class="bi bi-download"></i> Install App';
+            installButton.onclick = installPWA;
+
+            document.body.appendChild(installButton);
+
+            // Auto-remove after 30 seconds
+            setTimeout(() => {
+                if (installButton.parentNode) {
+                    installButton.remove();
+                }
+            }, 30000);
+        }
+
+        async function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to install prompt: ${outcome}`);
+                deferredPrompt = null;
+
+                // Hide install button
+                document.querySelector('.btn[onclick="installPWA()"]').remove();
+            }
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

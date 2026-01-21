@@ -1,0 +1,103 @@
+{% extends 'schools/base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'attendance_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Attendance
+                </a>
+            </div>
+
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <form method="post" data-offline="true">
+                                {% csrf_token %}
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.student.id_for_label }}" class="form-label">Student *</label>
+                                        {{ form.student }}
+                                        {% if form.student.errors %}
+                                            <div class="text-danger">{{ form.student.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.class_section.id_for_label }}" class="form-label">Class Section *</label>
+                                        {{ form.class_section }}
+                                        {% if form.class_section.errors %}
+                                            <div class="text-danger">{{ form.class_section.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.date.id_for_label }}" class="form-label">Date *</label>
+                                        {{ form.date }}
+                                        {% if form.date.errors %}
+                                            <div class="text-danger">{{ form.date.errors }}</div>
+                                        {% endif %}
+                                        <div class="form-text">Select the attendance date</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.status.id_for_label }}" class="form-label">Status *</label>
+                                        {{ form.status }}
+                                        {% if form.status.errors %}
+                                            <div class="text-danger">{{ form.status.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.school.id_for_label }}" class="form-label">School *</label>
+                                        {{ form.school }}
+                                        {% if form.school.errors %}
+                                            <div class="text-danger">{{ form.school.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                                    {{ form.notes }}
+                                    {% if form.notes.errors %}
+                                        <div class="text-danger">{{ form.notes.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-text">Optional notes about attendance</div>
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        {% if attendance %}Update Attendance{% else %}Mark Attendance{% endif %}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set default date to today
+document.addEventListener('DOMContentLoaded', function() {
+    const dateField = document.getElementById('{{ form.date.id_for_label }}');
+    if (!dateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateField.value = today;
+    }
+});
+
+// Offline form handling
+document.querySelector('form[data-offline="true"]').addEventListener('submit', function(e) {
+    if (!navigator.onLine) {
+        // Form will be handled by the PWA's offline submission logic
+        console.log('Attendance form submitted offline');
+    }
+});
+</script>
+{% endblock %}

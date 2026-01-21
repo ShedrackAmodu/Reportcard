@@ -1,0 +1,53 @@
+{% extends 'schools/base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">{{ title }}</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Warning</h5>
+                        <p>Are you sure you want to delete the grading period <strong>{{ grading_period.name }}</strong>?</p>
+                        <p class="mb-0">This action cannot be undone.</p>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <strong>Name:</strong> {{ grading_period.name }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Start Date:</strong> {{ grading_period.start_date|date:"M d, Y" }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>End Date:</strong> {{ grading_period.end_date|date:"M d, Y" }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>School:</strong> {{ grading_period.school.name }}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete Grading Period
+                        </button>
+                    </form>
+                    <a href="{% url 'grading_period_list' %}" class="btn btn-secondary ms-2">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

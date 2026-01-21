@@ -1,0 +1,62 @@
+{% extends 'schools/base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'subject_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Subject
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    {% if subjects %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Code</th>
+                                    <th>Description</th>
+                                    <th>School</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in subjects %}
+                                <tr>
+                                    <td>{{ subject.name }}</td>
+                                    <td>{{ subject.code }}</td>
+                                    <td>{{ subject.description|truncatechars:50 }}</td>
+                                    <td>{{ subject.school.name }}</td>
+                                    <td>
+                                        <a href="{% url 'subject_update' subject.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <a href="{% url 'subject_delete' subject.pk %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <p class="text-muted">No subjects found.</p>
+                        <a href="{% url 'subject_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create First Subject
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

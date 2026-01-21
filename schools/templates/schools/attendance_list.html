@@ -1,0 +1,93 @@
+{% extends 'schools/base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'attendance_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Mark Attendance
+                </a>
+            </div>
+
+            <!-- Date Filter -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="date" class="form-label">Filter by Date</label>
+                            <input type="date" name="date" id="date" class="form-control" value="{{ date_filter }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-outline-secondary d-block">Filter</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    {% if attendances %}
+                    <div class="table-responsive">
+                        <table class="table table-striped" data-model="attendance">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Class Section</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                    <th>School</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in attendances %}
+                                <tr>
+                                    <td>{{ attendance.student.get_full_name }} ({{ attendance.student.username }})</td>
+                                    <td>{{ attendance.class_section.name }}</td>
+                                    <td>{{ attendance.date }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if attendance.status == 'present' %}success{% elif attendance.status == 'late' %}warning{% elif attendance.status == 'excused' %}info{% else %}danger{% endif %}">
+                                            {{ attendance.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ attendance.notes|truncatechars:30|default:"-" }}</td>
+                                    <td>{{ attendance.school.name }}</td>
+                                    <td>
+                                        <a href="{% url 'attendance_update' attendance.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <a href="{% url 'attendance_delete' attendance.pk %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <p class="text-muted">No attendance records found.</p>
+                        <a href="{% url 'attendance_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Mark First Attendance
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add offline indicator class to table when offline
+if (!navigator.onLine) {
+    document.querySelector('table[data-model="attendance"]').classList.add('offline-indicator');
+}
+</script>
+{% endblock %}

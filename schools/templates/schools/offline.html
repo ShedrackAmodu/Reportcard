@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - SchoolSync</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .offline-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .offline-icon {
+            font-size: 4rem;
+            color: #6c757d;
+            margin-bottom: 1rem;
+        }
+        .sync-status {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-card">
+        <div class="offline-icon">
+            <i class="bi bi-wifi-off"></i>
+        </div>
+        <h2 class="mb-3">You're Offline</h2>
+        <p class="text-muted mb-4">
+            No internet connection detected. SchoolSync is working in offline mode.
+            Your changes will be synchronized when you're back online.
+        </p>
+
+        <div class="sync-status" id="syncStatus">
+            <i class="bi bi-arrow-repeat"></i>
+            Checking connection...
+        </div>
+
+        <div class="mt-4">
+            <button class="btn btn-primary me-2" onclick="checkConnection()">
+                <i class="bi bi-arrow-clockwise"></i> Check Connection
+            </button>
+            <button class="btn btn-outline-secondary" onclick="goHome()">
+                <i class="bi bi-house"></i> Home
+            </button>
+        </div>
+
+        <div class="mt-4 text-start">
+            <h6>Offline Features Available:</h6>
+            <ul class="list-unstyled small text-muted">
+                <li><i class="bi bi-check-circle text-success"></i> View cached data</li>
+                <li><i class="bi bi-check-circle text-success"></i> Add/edit grades offline</li>
+                <li><i class="bi bi-check-circle text-success"></i> Mark attendance</li>
+                <li><i class="bi bi-clock text-warning"></i> Changes sync when online</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let syncInterval;
+
+        function checkConnection() {
+            const statusEl = document.getElementById('syncStatus');
+            statusEl.innerHTML = '<i class="bi bi-arrow-repeat spinning"></i> Checking...';
+
+            // Simple connection check
+            fetch('/api/sync/?last_sync=2024-01-01T00:00:00', {
+                method: 'GET',
+                cache: 'no-cache'
+            })
+            .then(response => {
+                if (response.ok) {
+                    statusEl.innerHTML = '<i class="bi bi-wifi text-success"></i> Online - Syncing...';
+                    // Trigger sync and redirect
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    throw new Error('Network response not ok');
+                }
+            })
+            .catch(error => {
+                statusEl.innerHTML = '<i class="bi bi-wifi-off text-warning"></i> Still offline';
+                console.log('Connection check failed:', error);
+            });
+        }
+
+        function goHome() {
+            // Try to navigate to dashboard, fallback to landing
+            window.location.href = '/dashboard/' || '/';
+        }
+
+        // Auto-check connection every 30 seconds
+        function startAutoCheck() {
+            syncInterval = setInterval(checkConnection, 30000);
+        }
+
+        // Stop auto-check when page becomes hidden
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                if (syncInterval) {
+                    clearInterval(syncInterval);
+                }
+            } else {
+                startAutoCheck();
+            }
+        });
+
+        // Initial check
+        checkConnection();
+        startAutoCheck();
+
+        // Add spinning animation
+        const style = document.createElement('style');
+        style.textContent = `
+            .spinning {
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

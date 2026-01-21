@@ -1,0 +1,60 @@
+{% extends 'schools/base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'class_section_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Class Section
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    {% if class_sections %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Grade Level</th>
+                                    <th>School</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class_section in class_sections %}
+                                <tr>
+                                    <td>{{ class_section.name }}</td>
+                                    <td>{{ class_section.grade_level }}</td>
+                                    <td>{{ class_section.school.name }}</td>
+                                    <td>
+                                        <a href="{% url 'class_section_update' class_section.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <a href="{% url 'class_section_delete' class_section.pk %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <p class="text-muted">No class sections found.</p>
+                        <a href="{% url 'class_section_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create First Class Section
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
