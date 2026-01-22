@@ -96,14 +96,18 @@ document.getElementById('{{ form.score.id_for_label }}').addEventListener('input
     const letterGradeField = document.getElementById('{{ form.letter_grade.id_for_label }}');
 
     if (!isNaN(score) && score >= 0 && score <= 100) {
-        // Basic letter grade calculation (can be enhanced with grading scale data)
-        let letterGrade = 'F';
-        if (score >= 90) letterGrade = 'A';
-        else if (score >= 80) letterGrade = 'B';
-        else if (score >= 70) letterGrade = 'C';
-        else if (score >= 60) letterGrade = 'D';
+        // Get grading scale data from the school (assuming first grading scale)
+        {% if form.school.value %}
+            // This would need to be enhanced to fetch grading scale data dynamically
+            // For now, using basic calculation
+            let letterGrade = 'F';
+            if (score >= 90) letterGrade = 'A';
+            else if (score >= 80) letterGrade = 'B';
+            else if (score >= 70) letterGrade = 'C';
+            else if (score >= 60) letterGrade = 'D';
 
-        letterGradeField.value = letterGrade;
+            letterGradeField.value = letterGrade;
+        {% endif %}
     }
 });
 

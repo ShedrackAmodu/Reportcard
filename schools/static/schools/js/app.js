@@ -1,5 +1,5 @@
-// SchoolSync PWA Client-side JavaScript
-class SchoolSyncPWA {
+// ReportCardApp PWA Client-side JavaScript
+class ReportCardAppPWA {
     constructor() {
         this.isOnline = navigator.onLine;
         this.syncInProgress = false;
@@ -580,7 +580,7 @@ class SchoolSyncPWA {
 
 // Initialize PWA when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.pwa = new SchoolSyncPWA();
+    window.pwa = new ReportCardAppPWA();
 
     // Measure network quality periodically
     setInterval(() => {

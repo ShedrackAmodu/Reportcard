@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import School, User, ClassSection, Subject, GradingScale, GradingPeriod, StudentEnrollment, Grade, Attendance
+from .models import School, User, ClassSection, Subject, GradingScale, GradingPeriod, StudentEnrollment, Grade, Attendance, UserApplication
 
 
 class SchoolSerializer(serializers.ModelSerializer):
@@ -59,4 +59,14 @@ class GradeSerializer(serializers.ModelSerializer):
 class AttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attendance
+        fields = '__all__'
+
+
+class UserApplicationSerializer(serializers.ModelSerializer):
+    submitted_by_name = serializers.CharField(source='submitted_by.get_full_name', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.get_full_name', read_only=True)
+    school_name = serializers.CharField(source='school.name', read_only=True)
+
+    class Meta:
+        model = UserApplication
         fields = '__all__'

@@ -7,9 +7,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .views import (
     SchoolViewSet, UserViewSet, ClassSectionViewSet, SubjectViewSet,
-    GradingScaleViewSet, GradingPeriodViewSet, StudentEnrollmentViewSet, GradeViewSet, AttendanceViewSet, sync_view,
+    GradingScaleViewSet, GradingPeriodViewSet, StudentEnrollmentViewSet, GradeViewSet, AttendanceViewSet, sync_view, search_api_view,
     CustomTokenObtainPairView,
-    login_view, logout_view, register_view, dashboard_view, landing_view, school_switch,
+    login_view, logout_view, register_view, dashboard_view, landing_view, school_switch, offline_view,
     school_list, school_create, school_update, school_delete,
     user_list, user_create, user_update, user_delete,
     class_section_list, class_section_create, class_section_update, class_section_delete,
@@ -17,8 +17,12 @@ from .views import (
     grading_scale_list, grading_scale_create, grading_scale_update, grading_scale_delete,
     enrollment_list, enrollment_create, enrollment_update, enrollment_delete,
     grading_period_list, grading_period_create, grading_period_update, grading_period_delete,
-    grade_list, grade_create, grade_update, grade_delete,
-    attendance_list, attendance_create, attendance_update, attendance_delete
+    grade_list, grade_bulk_entry, grade_import, grade_create, grade_update, grade_delete,
+    attendance_list, attendance_create, attendance_update, attendance_delete,
+    application_list, application_review,
+    report_card_pdf, report_card_list, batch_report_card_pdf,
+    report_template_list, report_template_edit, report_template_preview,
+    export_grades_excel, export_attendance_excel, export_users_csv
 )
 
 router = DefaultRouter()
@@ -32,24 +36,10 @@ router.register(r'student-enrollments', StudentEnrollmentViewSet)
 router.register(r'grades', GradeViewSet)
 router.register(r'attendance', AttendanceViewSet)
 
-urlpatterns = [
-    # API endpoints
-    path('api/', include(router.urls)),
-    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/sync/', sync_view, name='sync'),
-
-    # Root landing page
-    path('', landing_view, name='landing'),
-
-    # Web views
-    path('dashboard/', dashboard_view, name='dashboard'),
+accounts_urlpatterns = [
     path('login/', login_view, name='login'),
     path('register/', register_view, name='register'),
     path('logout/', logout_view, name='logout'),
-    path('school-switch/', school_switch, name='school_switch'),
-
-    # Password Reset
     path('password_reset/', auth_views.PasswordResetView.as_view(
         template_name='schools/password_reset.html'
     ), name='password_reset'),
@@ -62,6 +52,28 @@ urlpatterns = [
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(
         template_name='schools/password_reset_complete.html'
     ), name='password_reset_complete'),
+]
+
+urlpatterns = [
+    # API endpoints
+    path('api/', include(router.urls)),
+    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/sync/', sync_view, name='sync'),
+    path('api/search/', search_api_view, name='search_api'),
+
+    # Accounts (Authentication)
+    path('accounts/', include(accounts_urlpatterns)),
+
+    # Root landing page
+    path('', landing_view, name='landing'),
+
+    # Offline fallback page
+    path('offline/', offline_view, name='offline'),
+
+    # Web views
+    path('dashboard/', dashboard_view, name='dashboard'),
+    path('school-switch/', school_switch, name='school_switch'),
 
     # School Management (Super Admin)
     path('schools/', school_list, name='school_list'),
@@ -107,6 +119,8 @@ urlpatterns = [
 
     # Grade Management
     path('grades/', grade_list, name='grade_list'),
+    path('grades/bulk-entry/', grade_bulk_entry, name='grade_bulk_entry'),
+    path('grades/import/', grade_import, name='grade_import'),
     path('grades/create/', grade_create, name='grade_create'),
     path('grades/<int:pk>/update/', grade_update, name='grade_update'),
     path('grades/<int:pk>/delete/', grade_delete, name='grade_delete'),
@@ -116,4 +130,23 @@ urlpatterns = [
     path('attendance/create/', attendance_create, name='attendance_create'),
     path('attendance/<int:pk>/update/', attendance_update, name='attendance_update'),
     path('attendance/<int:pk>/delete/', attendance_delete, name='attendance_delete'),
+
+    # Application Management
+    path('applications/', application_list, name='application_list'),
+    path('applications/<int:pk>/review/', application_review, name='application_review'),
+
+    # Report Card Management
+    path('report-cards/', report_card_list, name='report_card_list'),
+    path('report-cards/<int:student_id>/pdf/', report_card_pdf, name='report_card_pdf'),
+    path('report-cards/batch-pdf/<int:class_id>/', batch_report_card_pdf, name='batch_report_card_pdf'),
+
+    # Report Template Management
+    path('report-templates/', report_template_list, name='report_template_list'),
+    path('report-templates/<int:school_id>/edit/', report_template_edit, name='report_template_edit'),
+    path('report-templates/<int:school_id>/preview/', report_template_preview, name='report_template_preview'),
+
+    # Export Views
+    path('export/grades/excel/', export_grades_excel, name='export_grades_excel'),
+    path('export/attendance/excel/', export_attendance_excel, name='export_attendance_excel'),
+    path('export/users/csv/', export_users_csv, name='export_users_csv'),
 ]

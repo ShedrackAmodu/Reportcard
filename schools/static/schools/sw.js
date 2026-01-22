@@ -1,4 +1,4 @@
-// Service Worker for SchoolSync PWA
+// Service Worker for ReportCardApp PWA
 const CACHE_NAME = 'schoolsync-v1';
 const STATIC_CACHE = 'schoolsync-static-v1';
 const DYNAMIC_CACHE = 'schoolsync-dynamic-v1';
@@ -222,7 +222,7 @@ async function doPeriodicSync() {
 }
 
 // IndexedDB Database Management
-const DB_NAME = 'SchoolSyncDB';
+const DB_NAME = 'ReportCardAppDB';
 const DB_VERSION = 3;
 
 function openDB() {

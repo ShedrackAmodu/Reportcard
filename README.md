@@ -1,4 +1,4 @@
-# SchoolSync: Multi-Tenant Report Card System
+# ReportCardApp: Multi-Tenant Report Card System
 
 A mobile-first, offline-capable school management system for generating report cards with multi-tenant architecture.
 

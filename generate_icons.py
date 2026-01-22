@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate PWA icons for SchoolSync
+Generate PWA icons for ReportCardApp
 Creates 192x192 and 512x512 PNG icons
 """
 
@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 import os
 
 def create_icon(size, filename):
-    """Create a simple gradient icon with 'SS' text"""
+    """Create a simple gradient icon with 'RCA' text"""
     # Create image with transparent background
     img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -40,7 +40,7 @@ def create_icon(size, filename):
         font = ImageFont.load_default()
         font_size = size // 4
 
-    text = "SS"
+    text = "RCA"
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]

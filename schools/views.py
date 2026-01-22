@@ -5,12 +5,19 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
+from django.db.models import Q
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+from django.http import HttpResponse
+from django.http import FileResponse, Http404
+from django.contrib.staticfiles import finders
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+import openpyxl
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -25,7 +32,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
-from .models import School, User, ClassSection, Subject, GradingScale, StudentEnrollment, GradingPeriod, Grade, Attendance
+from .models import School, User, ClassSection, Subject, GradingScale, StudentEnrollment, GradingPeriod, Grade, Attendance, UserApplication
 from .serializers import (
     SchoolSerializer, UserSerializer, ClassSectionSerializer,
     SubjectSerializer, GradingScaleSerializer, StudentEnrollmentSerializer, GradingPeriodSerializer,
@@ -146,6 +153,95 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def search_api_view(request):
+    """API endpoint for global search functionality"""
+    query = request.GET.get('q', '').strip()
+
+    if not query or len(query) < 2:
+        return Response({'results': []})
+
+    results = []
+
+    # Search users
+    users = User.objects.filter(
+        Q(username__icontains=query) |
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query) |
+        Q(email__icontains=query)
+    )
+
+    # Filter by school permissions
+    if request.user.role == 'super_admin':
+        pass  # Can see all users
+    elif request.user.role == 'admin':
+        users = users.filter(school=request.user.school)
+    elif request.user.role == 'teacher':
+        # Teachers can see students in their classes and other staff at their school
+        teacher_students = StudentEnrollment.objects.filter(
+            class_section__teacher=request.user
+        ).values_list('student_id', flat=True)
+        users = users.filter(
+            Q(school=request.user.school) |
+            Q(id__in=teacher_students)
+        )
+
+    users = users[:5]  # Limit results
+    for user in users:
+        results.append({
+            'title': user.get_full_name() or user.username,
+            'subtitle': f"{user.get_role_display()} • {user.school.name if user.school else 'No School'}",
+            'url': f'/users/{user.id}/update/',
+            'icon': 'person-fill' if user.role == 'student' else 'person-badge-fill',
+            'type': 'user'
+        })
+
+    # Search class sections
+    classes = ClassSection.objects.filter(
+        Q(name__icontains=query) |
+        Q(grade_level__icontains=query)
+    )
+
+    if request.user.role == 'super_admin':
+        pass  # Can see all classes
+    elif request.user.role in ['admin', 'teacher']:
+        classes = classes.filter(school=request.user.school)
+
+    classes = classes[:3]  # Limit results
+    for cls in classes:
+        results.append({
+            'title': cls.name,
+            'subtitle': f"Grade {cls.grade_level} • {cls.school.name}",
+            'url': f'/class-sections/{cls.id}/update/',
+            'icon': 'mortarboard-fill',
+            'type': 'class'
+        })
+
+    # Search subjects
+    subjects = Subject.objects.filter(
+        Q(name__icontains=query) |
+        Q(code__icontains=query)
+    )
+
+    if request.user.role == 'super_admin':
+        pass  # Can see all subjects
+    elif request.user.role in ['admin', 'teacher']:
+        subjects = subjects.filter(school=request.user.school)
+
+    subjects = subjects[:3]  # Limit results
+    for subject in subjects:
+        results.append({
+            'title': subject.name,
+            'subtitle': f"{subject.code} • {subject.school.name}",
+            'url': f'/subjects/{subject.id}/update/',
+            'icon': 'book-fill',
+            'type': 'subject'
+        })
+
+    return Response({'results': results})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def sync_view(request):
     last_sync_str = request.GET.get('last_sync')
     if not last_sync_str:
@@ -212,7 +308,7 @@ def login_view(request):
     else:
         form = AuthenticationForm()
 
-    return render(request, 'schools/login.html', {'form': form, 'schools': schools})
+    return render(request, 'schools/auth/login.html', {'form': form, 'schools': schools})
 
 
 @login_required
@@ -226,25 +322,42 @@ def register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
 
-    from .forms import UserForm
-    from .models import School
+    from .forms import UserApplicationForm, UserForm
+    from .models import School, UserApplication
     schools = School.objects.all()
 
     if request.method == 'POST':
-        form = UserForm(request.POST)
+        form = UserApplicationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            messages.success(request, 'Registration successful! Please login.')
-            return redirect('login')
+            role = form.cleaned_data['role']
+            # Students can register directly
+            if role == 'student':
+                user = User.objects.create_user(
+                    username=form.cleaned_data['username'],
+                    email=form.cleaned_data['email'],
+                    first_name=form.cleaned_data['first_name'],
+                    last_name=form.cleaned_data['last_name'],
+                    role=role,
+                    school=form.cleaned_data['school']
+                )
+                messages.success(request, 'Registration successful! Please login.')
+                return redirect('login')
+            else:
+                # Admin/Teacher applications need approval
+                application = form.save(commit=False)
+                application.submitted_by = request.user if request.user.is_authenticated else None
+                application.save()
+                messages.success(request, f'Application submitted for {role} role. It will be reviewed by the appropriate administrator.')
+                return redirect('dashboard')
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = UserForm()
-
-    return render(request, 'schools/register.html', {
+        form = UserApplicationForm()
+        form.request = request
+    return render(request, 'schools/auth/register.html', {
         'form': form,
         'schools': schools,
-        'title': 'Register for SchoolSync'
+        'title': 'Register for ReportCardApp'
     })
 
 
@@ -257,21 +370,56 @@ def dashboard_view(request):
     }
 
     if user.role == 'super_admin':
-        context['schools_count'] = School.objects.count()
-        context['users_count'] = User.objects.count()
+        cache_key_schools = 'schools_count'
+        cache_key_users = 'users_count'
+        context['schools_count'] = cache.get(cache_key_schools, School.objects.count())
+        context['users_count'] = cache.get(cache_key_users, User.objects.count())
+        # Cache for 5 minutes
+        cache.set(cache_key_schools, context['schools_count'], 300)
+        cache.set(cache_key_users, context['users_count'], 300)
     elif user.school:
         context['school'] = user.school
-        context['classes_count'] = ClassSection.objects.filter(school=user.school).count()
-        context['subjects_count'] = Subject.objects.filter(school=user.school).count()
-        context['students_count'] = StudentEnrollment.objects.filter(school=user.school).count()
+        cache_key_classes = f'classes_count_{user.school.id}'
+        cache_key_subjects = f'subjects_count_{user.school.id}'
+        cache_key_students = f'students_count_{user.school.id}'
+        context['classes_count'] = cache.get(cache_key_classes, ClassSection.objects.filter(school=user.school).count())
+        context['subjects_count'] = cache.get(cache_key_subjects, Subject.objects.filter(school=user.school).count())
+        context['students_count'] = cache.get(cache_key_students, StudentEnrollment.objects.filter(school=user.school).count())
+        # Cache for 5 minutes
+        cache.set(cache_key_classes, context['classes_count'], 300)
+        cache.set(cache_key_subjects, context['subjects_count'], 300)
+        cache.set(cache_key_students, context['students_count'], 300)
 
     return render(request, 'schools/dashboard.html', context)
 
 
 def landing_view(request):
     return render(request, 'schools/landing.html', {
-        'title': 'SchoolSync - Multi-Tenant Report Card System'
+        'title': 'ReportCardApp - Multi-Tenant Report Card System'
     })
+
+
+def offline_view(request):
+    """Offline fallback page for PWA"""
+    return render(request, 'schools/offline.html', {
+        'title': 'Offline - ReportCardApp'
+    })
+
+
+def manifest_view(request):
+    """Serve the web manifest at /manifest.json for PWABuilder and installers."""
+    manifest_path = finders.find('schools/manifest.json')
+    if not manifest_path:
+        raise Http404('Manifest not found')
+    return FileResponse(open(manifest_path, 'rb'), content_type='application/json')
+
+
+def sw_view(request):
+    """Serve the service worker at /sw.js so it is discoverable at web root."""
+    sw_path = finders.find('schools/sw.js')
+    if not sw_path:
+        raise Http404('Service worker not found')
+    return FileResponse(open(sw_path, 'rb'), content_type='application/javascript')
 
 
 @login_required
@@ -315,7 +463,7 @@ def school_switch(request):
         except School.DoesNotExist:
             pass
 
-    return render(request, 'schools/school_switch.html', {
+    return render(request, 'schools/schools/school_switch.html', {
         'schools': schools,
         'current_school': current_school,
         'title': 'Switch School Context'
@@ -330,7 +478,7 @@ def school_list(request):
         return redirect('dashboard')
 
     schools = School.objects.all().order_by('-created_at')
-    return render(request, 'schools/school_list.html', {
+    return render(request, 'schools/schools/school_list.html', {
         'schools': schools,
         'title': 'Manage Schools'
     })
@@ -351,7 +499,7 @@ def school_create(request):
             return redirect('school_list')
     else:
         form = SchoolForm()
-    return render(request, 'schools/school_form.html', {
+    return render(request, 'schools/schools/school_form.html', {
         'form': form,
         'title': 'Create School'
     })
@@ -373,7 +521,7 @@ def school_update(request, pk):
             return redirect('school_list')
     else:
         form = SchoolForm(instance=school)
-    return render(request, 'schools/school_form.html', {
+    return render(request, 'schools/schools/school_form.html', {
         'form': form,
         'school': school,
         'title': 'Edit School'
@@ -993,6 +1141,240 @@ def grade_list(request):
 
 
 @login_required
+def grade_bulk_entry(request):
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    school = request.user.school if request.user.role != 'super_admin' else None
+
+    # Get available subjects for the teacher/admin
+    subjects = Subject.objects.filter(school=school) if school else Subject.objects.all()
+    if request.user.role == 'teacher':
+        subjects = subjects.filter(class_sections__teacher=request.user).distinct()
+
+    # Get available grading periods
+    grading_periods = GradingPeriod.objects.filter(school=school) if school else GradingPeriod.objects.all()
+
+    selected_subject_id = request.GET.get('subject')
+    selected_grading_period_id = request.GET.get('grading_period')
+    selected_class_id = request.GET.get('class_section')
+
+    students = []
+    existing_grades = {}
+
+    if selected_subject_id and selected_grading_period_id and selected_class_id:
+        try:
+            subject = Subject.objects.get(id=selected_subject_id, school=school) if school else Subject.objects.get(id=selected_subject_id)
+            grading_period = GradingPeriod.objects.get(id=selected_grading_period_id, school=school) if school else GradingPeriod.objects.get(id=selected_grading_period_id)
+            class_section = ClassSection.objects.get(id=selected_class_id, school=school) if school else ClassSection.objects.get(id=selected_class_id)
+
+            # Get enrolled students for this class
+            enrollments = StudentEnrollment.objects.filter(class_section=class_section).select_related('student')
+            students = [enrollment.student for enrollment in enrollments]
+
+            # Get existing grades for this subject/grading period
+            grades = Grade.objects.filter(
+                student__in=students,
+                subject=subject,
+                grading_period=grading_period
+            ).select_related('student')
+
+            existing_grades = {grade.student.id: grade for grade in grades}
+
+        except (Subject.DoesNotExist, GradingPeriod.DoesNotExist, ClassSection.DoesNotExist):
+            messages.error(request, 'Invalid selection.')
+            return redirect('grade_bulk_entry')
+
+    # Handle POST request for bulk grade submission
+    if request.method == 'POST':
+        for key, value in request.POST.items():
+            if key.startswith('score_'):
+                student_id = key.split('_')[1]
+                score = value.strip()
+                comments = request.POST.get(f'comments_{student_id}', '').strip()
+
+                if score:
+                    try:
+                        score_float = float(score)
+                        student = User.objects.get(id=student_id, role='student')
+
+                        # Get or create grade
+                        grade, created = Grade.objects.get_or_create(
+                            student=student,
+                            subject_id=selected_subject_id,
+                            grading_period_id=selected_grading_period_id,
+                            defaults={'school': school or student.school}
+                        )
+
+                        grade.score = score_float
+                        grade.comments = comments
+                        grade.save()
+
+                    except (ValueError, User.DoesNotExist):
+                        continue
+
+        messages.success(request, 'Grades saved successfully.')
+        return redirect('grade_bulk_entry')
+
+    # Get available class sections for the selected subject
+    class_sections = []
+    if selected_subject_id:
+        class_sections = ClassSection.objects.filter(
+            school=school,
+            subjects__id=selected_subject_id
+        ).distinct() if school else ClassSection.objects.filter(subjects__id=selected_subject_id).distinct()
+
+    context = {
+        'subjects': subjects,
+        'grading_periods': grading_periods,
+        'class_sections': class_sections,
+        'students': students,
+        'existing_grades': existing_grades,
+        'selected_subject_id': selected_subject_id,
+        'selected_grading_period_id': selected_grading_period_id,
+        'selected_class_id': selected_class_id,
+        'title': 'Bulk Grade Entry'
+    }
+
+    return render(request, 'schools/grades/grade_bulk_entry.html', context)
+
+
+@login_required
+def grade_import(request):
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    school = request.user.school if request.user.role != 'super_admin' else None
+
+    if request.method == 'POST':
+        import_file = request.FILES.get('import_file')
+        if not import_file:
+            messages.error(request, 'Please select a file to import.')
+            return redirect('grade_import')
+
+        # Process file
+        try:
+            if import_file.name.endswith('.xlsx') or import_file.name.endswith('.xls'):
+                # Excel file processing
+                try:
+                    import pandas as pd
+                except ImportError:
+                    messages.error(request, 'Pandas library is required for Excel file processing. Please install pandas.')
+                    return redirect('grade_import')
+
+                df = pd.read_excel(import_file)
+
+                # Expected columns: student_id, subject_code, grading_period_name, score, comments
+                required_columns = ['student_id', 'subject_code', 'grading_period_name', 'score']
+                if not all(col in df.columns for col in required_columns):
+                    messages.error(request, f'File must contain columns: {", ".join(required_columns)}')
+                    return redirect('grade_import')
+
+                success_count = 0
+                error_count = 0
+
+                for _, row in df.iterrows():
+                    try:
+                        student = User.objects.get(username=row['student_id'], role='student')
+                        if school and student.school != school:
+                            error_count += 1
+                            continue
+
+                        subject = Subject.objects.get(code=row['subject_code'])
+                        if school and subject.school != school:
+                            error_count += 1
+                            continue
+
+                        grading_period = GradingPeriod.objects.get(name=row['grading_period_name'])
+                        if school and grading_period.school != school:
+                            error_count += 1
+                            continue
+
+                        # Create or update grade
+                        grade, created = Grade.objects.get_or_create(
+                            student=student,
+                            subject=subject,
+                            grading_period=grading_period,
+                            defaults={'school': school or student.school}
+                        )
+
+                        grade.score = float(row['score'])
+                        grade.comments = row.get('comments', '') if pd.notna(row.get('comments')) else ''
+                        grade.save()
+
+                        success_count += 1
+
+                    except (User.DoesNotExist, Subject.DoesNotExist, GradingPeriod.DoesNotExist, ValueError) as e:
+                        error_count += 1
+                        continue
+
+                messages.success(request, f'Import completed. {success_count} grades imported successfully, {error_count} errors.')
+
+            elif import_file.name.endswith('.csv'):
+                # CSV file processing
+                import csv
+                import io
+
+                # Read CSV content
+                file_data = import_file.read().decode('utf-8')
+                csv_reader = csv.DictReader(io.StringIO(file_data))
+
+                success_count = 0
+                error_count = 0
+
+                for row in csv_reader:
+                    try:
+                        student = User.objects.get(username=row['student_id'], role='student')
+                        if school and student.school != school:
+                            error_count += 1
+                            continue
+
+                        subject = Subject.objects.get(code=row['subject_code'])
+                        if school and subject.school != school:
+                            error_count += 1
+                            continue
+
+                        grading_period = GradingPeriod.objects.get(name=row['grading_period_name'])
+                        if school and grading_period.school != school:
+                            error_count += 1
+                            continue
+
+                        # Create or update grade
+                        grade, created = Grade.objects.get_or_create(
+                            student=student,
+                            subject=subject,
+                            grading_period=grading_period,
+                            defaults={'school': school or student.school}
+                        )
+
+                        grade.score = float(row['score'])
+                        grade.comments = row.get('comments', '')
+                        grade.save()
+
+                        success_count += 1
+
+                    except (User.DoesNotExist, Subject.DoesNotExist, GradingPeriod.DoesNotExist, ValueError, KeyError) as e:
+                        error_count += 1
+                        continue
+
+                messages.success(request, f'Import completed. {success_count} grades imported successfully, {error_count} errors.')
+
+            else:
+                messages.error(request, 'Unsupported file format. Please use Excel (.xlsx, .xls) or CSV (.csv) files.')
+
+        except Exception as e:
+            messages.error(request, f'Error processing file: {str(e)}')
+
+        return redirect('grade_import')
+
+    return render(request, 'schools/grades/grade_import.html', {
+        'title': 'Import Grades from Excel/CSV'
+    })
+
+
+@login_required
 def grade_create(request):
     if request.user.role not in ['super_admin', 'admin', 'teacher']:
         messages.error(request, 'Access denied. Insufficient privileges.')
@@ -1181,3 +1563,826 @@ def attendance_delete(request, pk):
         'attendance': attendance,
         'title': 'Delete Attendance Record'
     })
+
+
+# Application Management Views
+@login_required
+def application_list(request):
+    if request.user.role not in ['super_admin', 'admin']:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
+
+    applications = UserApplication.objects.all().select_related('school', 'submitted_by', 'reviewed_by')
+
+    # Filter applications based on user role
+    if request.user.role == 'super_admin':
+        # Super admin can see admin applications globally and teacher applications for all schools
+        applications = applications.filter(role__in=['admin', 'teacher'])
+    elif request.user.role == 'admin':
+        # School admin can only see teacher applications for their school
+        applications = applications.filter(role='teacher', school=request.user.school)
+
+    # Filter by status if specified
+    status_filter = request.GET.get('status')
+    if status_filter:
+        applications = applications.filter(status=status_filter)
+
+    return render(request, 'schools/applications/application_list.html', {
+        'applications': applications,
+        'status_filter': status_filter,
+        'title': 'Manage Applications'
+    })
+
+
+@login_required
+def application_review(request, pk):
+    application = get_object_or_404(UserApplication, pk=pk)
+
+    # Check permissions
+    if request.user.role == 'super_admin':
+        # Super admin can review admin and teacher applications
+        if application.role not in ['admin', 'teacher']:
+            messages.error(request, 'Access denied.')
+            return redirect('application_list')
+    elif request.user.role == 'admin':
+        # School admin can only review teacher applications for their school
+        if application.role != 'teacher' or application.school != request.user.school:
+            messages.error(request, 'Access denied.')
+            return redirect('application_list')
+    else:
+        messages.error(request, 'Access denied.')
+        return redirect('application_list')
+
+    if application.status != 'pending':
+        messages.error(request, 'This application has already been reviewed.')
+        return redirect('application_list')
+
+    from .forms import ApplicationReviewForm
+    if request.method == 'POST':
+        form = ApplicationReviewForm(request.POST)
+        if form.is_valid():
+            action = form.cleaned_data['action']
+            review_notes = form.cleaned_data['review_notes']
+
+            if action == 'approve':
+                user = application.approve(request.user)
+                if user:
+                    messages.success(request, f'Application approved. User {user.username} has been created.')
+                else:
+                    messages.error(request, 'Failed to approve application.')
+            elif action == 'reject':
+                if application.reject(request.user, review_notes):
+                    messages.success(request, 'Application rejected.')
+                else:
+                    messages.error(request, 'Failed to reject application.')
+
+            return redirect('application_list')
+    else:
+        form = ApplicationReviewForm()
+
+    return render(request, 'schools/applications/application_review.html', {
+        'application': application,
+        'form': form,
+        'title': 'Review Application'
+    })
+
+
+# PDF Generation and Report Card Views
+@login_required
+def report_card_pdf(request, student_id):
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    student = get_object_or_404(User, id=student_id, role='student')
+
+    # Check permissions
+    if request.user.role == 'admin' and student.school != request.user.school:
+        messages.error(request, 'Access denied. Cannot view reports for students from other schools.')
+        return redirect('dashboard')
+    elif request.user.role == 'teacher' and not StudentEnrollment.objects.filter(
+        student=student,
+        class_section__teacher=request.user
+    ).exists():
+        messages.error(request, 'Access denied. Cannot view reports for students you do not teach.')
+        return redirect('dashboard')
+
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from django.http import HttpResponse
+    from django.conf import settings
+    import io
+    import os
+
+    # Create PDF buffer
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Get student data
+    enrollment = StudentEnrollment.objects.filter(student=student).first()
+    grades = Grade.objects.filter(student=student).select_related('subject', 'grading_period').order_by('grading_period__start_date', 'subject__name')
+
+    # Get school template or use default
+    template_data = student.school.report_template if student.school.report_template else {}
+
+    # Prepare template context
+    context = {
+        'school': student.school,
+        'student': student,
+        'enrollment': enrollment,
+        'grades': grades,
+        'now': datetime.now(),
+        'academic_year': f"{datetime.now().year}-{datetime.now().year + 1}",
+    }
+
+    # Process template variables
+    processed_template = process_template_variables(template_data, context)
+
+    # Build PDF based on template or use default layout
+    if processed_template and 'header' in processed_template:
+        # Use template-based layout
+        header = processed_template.get('header', {})
+
+        # School logo (if available)
+        logo_path = os.path.join(settings.STATIC_ROOT, 'schools', 'images', 'school_logo.png')
+        if os.path.exists(logo_path):
+            logo = Image(logo_path, width=1*inch, height=1*inch)
+            story.append(logo)
+            story.append(Spacer(1, 12))
+
+        # School name and title
+        school_name = header.get('school_name', student.school.name)
+        title = header.get('title', 'Report Card')
+        academic_year = header.get('academic_year', context['academic_year'])
+
+        story.append(Paragraph(f"<b>{school_name}</b>", styles['Title']))
+        story.append(Paragraph(f"<b>{title}</b>", styles['Heading1']))
+        story.append(Paragraph(f"<b>Academic Year: {academic_year}</b>", styles['Heading2']))
+        story.append(Spacer(1, 12))
+
+        # Student info section
+        student_info = processed_template.get('student_info', {})
+        student_name = student_info.get('name', student.get_full_name())
+        student_id = student_info.get('id', student.username)
+        class_name = student_info.get('class', enrollment.class_section.name if enrollment else 'N/A')
+
+        story.append(Paragraph(f"<b>Student Name:</b> {student_name}", styles['Normal']))
+        story.append(Paragraph(f"<b>Student ID:</b> {student_id}", styles['Normal']))
+        story.append(Paragraph(f"<b>Class:</b> {class_name}", styles['Normal']))
+        story.append(Spacer(1, 12))
+
+        # Grades table
+        grades_table = processed_template.get('grades_table', {})
+        if grades_table and grades.exists():
+            columns = grades_table.get('columns', ['Subject', 'Grading Period', 'Score', 'Grade', 'Comments'])
+            rows_data = grades_table.get('rows', [])
+
+            # If no custom rows, generate from grades
+            if not rows_data:
+                data = [columns]
+                for grade in grades:
+                    data.append([
+                        grade.subject.name,
+                        grade.grading_period.name,
+                        str(grade.score) if grade.score else '-',
+                        grade.letter_grade or '-',
+                        grade.comments or '-'
+                    ])
+            else:
+                data = [columns] + rows_data
+
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ]))
+            story.append(table)
+        else:
+            story.append(Paragraph("No grades available.", styles['Normal']))
+
+        # Footer
+        footer = processed_template.get('footer', {})
+        generated_date = footer.get('generated_date', datetime.now().strftime('%B %d, %Y'))
+        signature = footer.get('signature', 'School Administration')
+
+        story.append(Spacer(1, 30))
+        story.append(Paragraph(f"<i>Generated on: {generated_date}</i>", styles['Italic']))
+        story.append(Paragraph(f"<i>{signature}</i>", styles['Italic']))
+
+    else:
+        # Default layout (fallback)
+        story.append(Paragraph(f"<b>{student.school.name}</b>", styles['Title']))
+        story.append(Paragraph("<b>Report Card</b>", styles['Heading1']))
+        story.append(Spacer(1, 12))
+
+        # Student info
+        story.append(Paragraph(f"<b>Student Name:</b> {student.get_full_name()}", styles['Normal']))
+        story.append(Paragraph(f"<b>Student ID:</b> {student.username}", styles['Normal']))
+        if enrollment:
+            story.append(Paragraph(f"<b>Class:</b> {enrollment.class_section.name}", styles['Normal']))
+        story.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y')}", styles['Normal']))
+        story.append(Spacer(1, 20))
+
+        # Grades table
+        if grades:
+            data = [['Subject', 'Grading Period', 'Score', 'Grade', 'Comments']]
+            for grade in grades:
+                data.append([
+                    grade.subject.name,
+                    grade.grading_period.name,
+                    str(grade.score) if grade.score else '-',
+                    grade.letter_grade or '-',
+                    grade.comments or '-'
+                ])
+
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 14),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(table)
+        else:
+            story.append(Paragraph("No grades available.", styles['Normal']))
+
+        story.append(Spacer(1, 30))
+        story.append(Paragraph("<i>School Administration</i>", styles['Italic']))
+
+    doc.build(story)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{student.username}_report_card.pdf"'
+
+    return response
+
+
+@login_required
+def batch_report_card_pdf(request, class_id):
+    """
+    Generate batch PDF report cards for all students in a class section.
+    """
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    class_section = get_object_or_404(ClassSection, id=class_id)
+
+    # Check permissions
+    if request.user.role == 'admin' and class_section.school != request.user.school:
+        messages.error(request, 'Access denied. Cannot generate reports for classes from other schools.')
+        return redirect('dashboard')
+    elif request.user.role == 'teacher' and class_section.teacher != request.user:
+        messages.error(request, 'Access denied. Cannot generate reports for classes you do not teach.')
+        return redirect('dashboard')
+
+    # Get enrolled students
+    enrollments = StudentEnrollment.objects.filter(class_section=class_section).select_related('student')
+    students = [enrollment.student for enrollment in enrollments]
+
+    if not students:
+        messages.error(request, 'No students enrolled in this class.')
+        return redirect('report_card_list')
+
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from django.http import HttpResponse
+    from django.conf import settings
+    import io
+    import os
+
+    # Create PDF buffer
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Get school template
+    template_data = class_section.school.report_template if class_section.school.report_template else {}
+
+    first_student = True
+    for student in students:
+        if not first_student:
+            story.append(PageBreak())
+
+        # Get student data
+        enrollment = StudentEnrollment.objects.filter(student=student, class_section=class_section).first()
+        grades = Grade.objects.filter(student=student).select_related('subject', 'grading_period').order_by('grading_period__start_date', 'subject__name')
+
+        # Prepare template context
+        context = {
+            'school': class_section.school,
+            'student': student,
+            'enrollment': enrollment,
+            'grades': grades,
+            'now': datetime.now(),
+            'academic_year': f"{datetime.now().year}-{datetime.now().year + 1}",
+        }
+
+        # Process template variables
+        processed_template = process_template_variables(template_data, context)
+
+        # Build PDF based on template or use default layout
+        if processed_template and 'header' in processed_template:
+            # Use template-based layout
+            header = processed_template.get('header', {})
+
+            # School name and title
+            school_name = header.get('school_name', class_section.school.name)
+            title = header.get('title', 'Report Card')
+            academic_year = header.get('academic_year', context['academic_year'])
+
+            story.append(Paragraph(f"<b>{school_name}</b>", styles['Title']))
+            story.append(Paragraph(f"<b>{title}</b>", styles['Heading1']))
+            story.append(Paragraph(f"<b>Academic Year: {academic_year}</b>", styles['Heading2']))
+            story.append(Spacer(1, 12))
+
+            # Student info section
+            student_info = processed_template.get('student_info', {})
+            student_name = student_info.get('name', student.get_full_name())
+            student_id = student_info.get('id', student.username)
+            class_name = student_info.get('class', class_section.name)
+
+            story.append(Paragraph(f"<b>Student Name:</b> {student_name}", styles['Normal']))
+            story.append(Paragraph(f"<b>Student ID:</b> {student_id}", styles['Normal']))
+            story.append(Paragraph(f"<b>Class:</b> {class_name}", styles['Normal']))
+            story.append(Spacer(1, 12))
+
+            # Grades table
+            grades_table = processed_template.get('grades_table', {})
+            if grades_table and grades.exists():
+                columns = grades_table.get('columns', ['Subject', 'Grading Period', 'Score', 'Grade', 'Comments'])
+                rows_data = grades_table.get('rows', [])
+
+                # If no custom rows, generate from grades
+                if not rows_data:
+                    data = [columns]
+                    for grade in grades:
+                        data.append([
+                            grade.subject.name,
+                            grade.grading_period.name,
+                            str(grade.score) if grade.score else '-',
+                            grade.letter_grade or '-',
+                            grade.comments or '-'
+                        ])
+                else:
+                    data = [columns] + rows_data
+
+                table = Table(data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ]))
+                story.append(table)
+            else:
+                story.append(Paragraph("No grades available.", styles['Normal']))
+
+            # Footer
+            footer = processed_template.get('footer', {})
+            generated_date = footer.get('generated_date', datetime.now().strftime('%B %d, %Y'))
+            signature = footer.get('signature', 'School Administration')
+
+            story.append(Spacer(1, 30))
+            story.append(Paragraph(f"<i>Generated on: {generated_date}</i>", styles['Italic']))
+            story.append(Paragraph(f"<i>{signature}</i>", styles['Italic']))
+
+        else:
+            # Default layout (fallback)
+            story.append(Paragraph(f"<b>{class_section.school.name}</b>", styles['Title']))
+            story.append(Paragraph("<b>Report Card</b>", styles['Heading1']))
+            story.append(Spacer(1, 12))
+
+            # Student info
+            story.append(Paragraph(f"<b>Student Name:</b> {student.get_full_name()}", styles['Normal']))
+            story.append(Paragraph(f"<b>Student ID:</b> {student.username}", styles['Normal']))
+            story.append(Paragraph(f"<b>Class:</b> {class_section.name}", styles['Normal']))
+            story.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y')}", styles['Normal']))
+            story.append(Spacer(1, 20))
+
+            # Grades table
+            if grades:
+                data = [['Subject', 'Grading Period', 'Score', 'Grade', 'Comments']]
+                for grade in grades:
+                    data.append([
+                        grade.subject.name,
+                        grade.grading_period.name,
+                        str(grade.score) if grade.score else '-',
+                        grade.letter_grade or '-',
+                        grade.comments or '-'
+                    ])
+
+                table = Table(data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 14),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                story.append(table)
+            else:
+                story.append(Paragraph("No grades available.", styles['Normal']))
+
+            story.append(Spacer(1, 30))
+            story.append(Paragraph("<i>School Administration</i>", styles['Italic']))
+
+        first_student = False
+
+    doc.build(story)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{class_section.name}_report_cards.pdf"'
+
+    return response
+
+
+@login_required
+def report_card_list(request):
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    school = request.user.school if request.user.role != 'super_admin' else None
+
+    # Get students based on user role
+    students = User.objects.filter(role='student')
+    if request.user.role == 'admin':
+        students = students.filter(school=school)
+    elif request.user.role == 'teacher':
+        # Teachers can only see students in their classes
+        student_ids = StudentEnrollment.objects.filter(
+            class_section__teacher=request.user
+        ).values_list('student_id', flat=True).distinct()
+        students = students.filter(id__in=student_ids)
+
+    # Filter by class if specified
+    class_id = request.GET.get('class_section')
+    if class_id:
+        enrollment_ids = StudentEnrollment.objects.filter(class_section_id=class_id).values_list('student_id', flat=True)
+        students = students.filter(id__in=enrollment_ids)
+
+    # Get available classes for filtering
+    class_sections = ClassSection.objects.filter(school=school) if school else ClassSection.objects.all()
+    if request.user.role == 'teacher':
+        class_sections = class_sections.filter(teacher=request.user)
+
+    return render(request, 'schools/report_cards/report_card_list.html', {
+        'students': students.order_by('last_name', 'first_name'),
+        'class_sections': class_sections,
+        'selected_class_id': class_id,
+        'title': 'Generate Report Cards'
+    })
+
+
+# Report Card Template Management Views
+@login_required
+def report_template_list(request):
+    if request.user.role not in ['super_admin', 'admin']:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
+
+    schools = School.objects.all().order_by('name')
+    if request.user.role == 'admin':
+        schools = schools.filter(id=request.user.school.id)
+
+    return render(request, 'schools/report_templates/report_template_list.html', {
+        'schools': schools,
+        'title': 'Report Card Templates'
+    })
+
+
+def process_template_variables(template_data, context):
+    """
+    Process template variables in report card template data.
+    Supports Django template syntax and custom variables.
+    """
+    import re
+    from datetime import datetime
+
+    def replace_variables(obj, context):
+        if isinstance(obj, str):
+            # Replace Django template variables
+            for key, value in context.items():
+                # Replace {{ variable }} patterns
+                pattern = r'\{\{\s*' + re.escape(key) + r'\s*\}\}'
+                obj = re.sub(pattern, str(value), obj)
+
+                # Replace {{ variable|filter }} patterns
+                filter_pattern = r'\{\{\s*' + re.escape(key) + r'\s*\|\s*(\w+)\s*\}\}'
+                matches = re.findall(filter_pattern, obj)
+                for match in matches:
+                    if match == 'date' and hasattr(value, 'strftime'):
+                        formatted_date = value.strftime('%B %d, %Y')
+                        obj = re.sub(filter_pattern, formatted_date, obj, count=1)
+                    elif match == 'upper':
+                        obj = re.sub(filter_pattern, str(value).upper(), obj, count=1)
+                    elif match == 'lower':
+                        obj = re.sub(filter_pattern, str(value).lower(), obj, count=1)
+
+            # Replace {{ now|date:'format' }} patterns
+            now_pattern = r'\{\{\s*now\s*\|\s*date:\s*[\'"]([^\'"]+)[\'"]\s*\}\}'
+            now_matches = re.findall(now_pattern, obj)
+            for match in now_matches:
+                formatted_now = datetime.now().strftime(match)
+                obj = re.sub(now_pattern, formatted_now, obj, count=1)
+
+        elif isinstance(obj, dict):
+            return {k: replace_variables(v, context) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [replace_variables(item, context) for item in obj]
+        else:
+            return obj
+
+    return replace_variables(template_data, context)
+
+
+@login_required
+def report_template_edit(request, school_id):
+    if request.user.role not in ['super_admin', 'admin']:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('report_template_list')
+
+    school = get_object_or_404(School, id=school_id)
+
+    # Check permissions
+    if request.user.role == 'admin' and school != request.user.school:
+        messages.error(request, 'Access denied. Cannot edit templates for other schools.')
+        return redirect('report_template_list')
+
+    from .forms import ReportTemplateForm
+    if request.method == 'POST':
+        form = ReportTemplateForm(request.POST, instance=school)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Report card template saved successfully.')
+            return redirect('report_template_list')
+    else:
+        form = ReportTemplateForm(instance=school)
+
+    return render(request, 'schools/report_templates/report_template_edit.html', {
+        'form': form,
+        'school': school,
+        'title': f'Edit Report Card Template - {school.name}'
+    })
+
+
+@login_required
+def report_template_preview(request, school_id):
+    if request.user.role not in ['super_admin', 'admin']:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('report_template_list')
+
+    school = get_object_or_404(School, id=school_id)
+
+    # Check permissions
+    if request.user.role == 'admin' and school != request.user.school:
+        messages.error(request, 'Access denied. Cannot preview templates for other schools.')
+        return redirect('report_template_list')
+
+    # Get sample data for preview
+    sample_student = User.objects.filter(school=school, role='student').first()
+    sample_grades = []
+    if sample_student:
+        sample_grades = Grade.objects.filter(student=sample_student).select_related('subject', 'grading_period')[:5]
+
+    return render(request, 'schools/report_templates/report_template_preview.html', {
+        'school': school,
+        'sample_student': sample_student,
+        'sample_grades': sample_grades,
+        'title': f'Preview Report Card Template - {school.name}'
+    })
+
+
+# Global Search View
+@login_required
+def search_view(request):
+    query = request.GET.get('q', '').strip()
+    results = {
+        'schools': [],
+        'users': [],
+        'classes': [],
+        'subjects': [],
+        'grades': [],
+        'attendances': [],
+    }
+
+    if query:
+        # Search schools
+        if request.user.role == 'super_admin':
+            results['schools'] = School.objects.filter(name__icontains=query)
+        else:
+            results['schools'] = School.objects.filter(name__icontains=query, id=request.user.school.id) if request.user.school else []
+
+        # Search users
+        if request.user.role == 'super_admin':
+            results['users'] = User.objects.filter(
+                Q(username__icontains=query) |
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(email__icontains=query)
+            )[:20]
+        else:
+            results['users'] = User.objects.filter(
+                Q(username__icontains=query) |
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(email__icontains=query),
+                school=request.user.school
+            )[:20]
+
+        # Search classes
+        class_sections = ClassSection.objects.filter(
+            Q(name__icontains=query) |
+            Q(grade_level__icontains=query)
+        )
+        if request.user.role == 'admin':
+            class_sections = class_sections.filter(school=request.user.school)
+        elif request.user.role == 'teacher':
+            class_sections = class_sections.filter(teacher=request.user)
+        results['classes'] = class_sections[:20]
+
+        # Search subjects
+        subjects = Subject.objects.filter(
+            Q(name__icontains=query) |
+            Q(code__icontains=query) |
+            Q(description__icontains=query)
+        )
+        if request.user.role in ['admin', 'teacher']:
+            subjects = subjects.filter(school=request.user.school)
+        results['subjects'] = subjects[:20]
+
+        # Search grades (for teachers and admins)
+        if request.user.role in ['super_admin', 'admin', 'teacher']:
+            grades = Grade.objects.filter(
+                Q(letter_grade__icontains=query) |
+                Q(comments__icontains=query)
+            ).select_related('student', 'subject', 'grading_period')
+            if request.user.role == 'admin':
+                grades = grades.filter(school=request.user.school)
+            elif request.user.role == 'teacher':
+                grades = grades.filter(school=request.user.school, subject__class_sections__teacher=request.user).distinct()
+            results['grades'] = grades[:20]
+
+        # Search attendance (for teachers and admins)
+        if request.user.role in ['super_admin', 'admin', 'teacher']:
+            attendances = Attendance.objects.filter(
+                Q(notes__icontains=query)
+            ).select_related('student', 'class_section')
+            if request.user.role == 'admin':
+                attendances = attendances.filter(school=request.user.school)
+            elif request.user.role == 'teacher':
+                attendances = attendances.filter(school=request.user.school, class_section__teacher=request.user)
+            results['attendances'] = attendances[:20]
+
+    return render(request, 'schools/search.html', {
+        'query': query,
+        'results': results,
+        'title': 'Search Results'
+    })
+
+
+# Export Views
+@login_required
+def export_grades_excel(request):
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        return HttpResponse('Unauthorized', status=403)
+
+    school = request.user.school if request.user.role != 'super_admin' else None
+
+    grades = Grade.objects.select_related('student', 'subject', 'grading_period', 'school')
+    if request.user.role == 'admin':
+        grades = grades.filter(school=school)
+    elif request.user.role == 'teacher':
+        grades = grades.filter(school=request.user.school, subject__class_sections__teacher=request.user).distinct()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Grades'
+
+    # Headers
+    headers = ['Student ID', 'Student Name', 'Subject', 'Grading Period', 'Score', 'Letter Grade', 'Comments', 'School']
+    for col_num, header in enumerate(headers, 1):
+        ws.cell(row=1, column=col_num, value=header)
+
+    # Data
+    for row_num, grade in enumerate(grades, 2):
+        ws.cell(row=row_num, column=1, value=grade.student.username)
+        ws.cell(row=row_num, column=2, value=grade.student.get_full_name())
+        ws.cell(row=row_num, column=3, value=grade.subject.name)
+        ws.cell(row=row_num, column=4, value=grade.grading_period.name)
+        ws.cell(row=row_num, column=5, value=grade.score)
+        ws.cell(row=row_num, column=6, value=grade.letter_grade)
+        ws.cell(row=row_num, column=7, value=grade.comments)
+        ws.cell(row=row_num, column=8, value=grade.school.name)
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=grades.xlsx'
+    wb.save(response)
+    return response
+
+
+@login_required
+def export_attendance_excel(request):
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        return HttpResponse('Unauthorized', status=403)
+
+    school = request.user.school if request.user.role != 'super_admin' else None
+
+    attendances = Attendance.objects.select_related('student', 'class_section', 'school')
+    if request.user.role == 'admin':
+        attendances = attendances.filter(school=school)
+    elif request.user.role == 'teacher':
+        attendances = attendances.filter(school=request.user.school, class_section__teacher=request.user)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Attendance'
+
+    # Headers
+    headers = ['Student ID', 'Student Name', 'Class Section', 'Date', 'Status', 'Notes', 'School']
+    for col_num, header in enumerate(headers, 1):
+        ws.cell(row=1, column=col_num, value=header)
+
+    # Data
+    for row_num, attendance in enumerate(attendances, 2):
+        ws.cell(row=row_num, column=1, value=attendance.student.username)
+        ws.cell(row=row_num, column=2, value=attendance.student.get_full_name())
+        ws.cell(row=row_num, column=3, value=attendance.class_section.name)
+        ws.cell(row=row_num, column=4, value=str(attendance.date))
+        ws.cell(row=row_num, column=5, value=attendance.status)
+        ws.cell(row=row_num, column=6, value=attendance.notes)
+        ws.cell(row=row_num, column=7, value=attendance.school.name)
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=attendance.xlsx'
+    wb.save(response)
+    return response
+
+
+@login_required
+def export_users_csv(request):
+    if request.user.role not in ['super_admin', 'admin']:
+        return HttpResponse('Unauthorized', status=403)
+
+    school = request.user.school if request.user.role == 'admin' else None
+
+    users = User.objects.all()
+    if school:
+        users = users.filter(school=school)
+
+    import csv
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename=users.csv'
+
+    writer = csv.writer(response)
+    writer.writerow(['ID', 'Username', 'First Name', 'Last Name', 'Email', 'Role', 'School'])
+
+    for user in users:
+        writer.writerow([
+            user.id,
+            user.username,
+            user.first_name,
+            user.last_name,
+            user.email,
+            user.role,
+            user.school.name if user.school else ''
+        ])
+
+    return response
