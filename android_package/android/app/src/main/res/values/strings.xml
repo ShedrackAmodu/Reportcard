@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ReportCard</string>
+    <string name="title_activity_main">ReportCard</string>
+    <string name="package_name">com.yourorg.reportcard</string>
+    <string name="custom_url_scheme">com.yourorg.reportcard</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "appId": "com.yourorg.reportcard",
+  "appName": "ReportCard",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
