@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -11,6 +12,7 @@ from django.views.decorators.cache import cache_page
 from django.http import HttpResponse
 from django.http import FileResponse, Http404
 from django.contrib.staticfiles import finders
+from django.conf import settings
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -240,10 +242,13 @@ def search_api_view(request):
     return Response({'results': results})
 
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def sync_view(request):
     last_sync_str = request.GET.get('last_sync')
+    school_id = request.GET.get('school_id')  # Allow explicit school_id for offline sync
+
     if not last_sync_str:
         return Response({'error': 'last_sync parameter required'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -251,6 +256,16 @@ def sync_view(request):
         last_sync = datetime.fromisoformat(last_sync_str.replace('Z', '+00:00'))
     except ValueError:
         return Response({'error': 'Invalid last_sync format'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Determine school context - use explicit school_id if provided, otherwise use request.school
+    school_context = None
+    if school_id:
+        try:
+            school_context = School.objects.get(id=school_id)
+        except School.DoesNotExist:
+            return Response({'error': 'Invalid school_id'}, status=status.HTTP_400_BAD_REQUEST)
+    elif request.school:
+        school_context = request.school
 
     data = {}
     models = [
@@ -267,15 +282,23 @@ def sync_view(request):
 
     for model, serializer_class in models:
         queryset = model.objects.filter(updated_at__gt=last_sync)
-        if hasattr(model, 'school') and request.school:
-            queryset = queryset.filter(school=request.school)
+        if hasattr(model, 'school') and school_context:
+            queryset = queryset.filter(school=school_context)
         elif model == School and request.user.role != 'super_admin':
             queryset = queryset.none()
         elif model == User and request.user.role != 'super_admin':
-            queryset = queryset.filter(school=request.school) if request.school else queryset.none()
+            queryset = queryset.filter(school=school_context) if school_context else queryset.none()
 
         serializer = serializer_class(queryset, many=True)
         data[model.__name__.lower()] = serializer.data
+
+    # Include user info and school context in response
+    data['_meta'] = {
+        'user_id': request.user.id,
+        'school_id': school_context.id if school_context else None,
+        'last_sync': datetime.now().isoformat(),
+        'sync_timestamp': int(datetime.now().timestamp() * 1000)
+    }
 
     return Response(data)
 
@@ -411,7 +434,7 @@ def manifest_view(request):
     manifest_path = finders.find('schools/manifest.json')
     if not manifest_path:
         raise Http404('Manifest not found')
-    return FileResponse(open(manifest_path, 'rb'), content_type='application/json')
+    return FileResponse(open(manifest_path, 'rb'), content_type='application/manifest+json')
 
 
 def sw_view(request):
@@ -420,6 +443,88 @@ def sw_view(request):
     if not sw_path:
         raise Http404('Service worker not found')
     return FileResponse(open(sw_path, 'rb'), content_type='application/javascript')
+
+
+def apk_download_view(request):
+    """Serve mobile app packages for download."""
+    import os
+    from django.conf import settings
+    from django.http import HttpResponse
+
+    downloads_dir = os.path.join(settings.BASE_DIR, 'downloads')
+
+    # Define available packages
+    packages = {
+        'android': {
+            'filename': 'reportcard.apk',
+            'content_type': 'application/vnd.android.package-archive',
+            'display_name': 'ReportCardApp.apk'
+        },
+        'ios': {
+            'filename': 'reportcard.ipa',
+            'content_type': 'application/octet-stream',
+            'display_name': 'ReportCardApp.ipa'
+        },
+        'windows': {
+            'filename': 'reportcard.msix',
+            'content_type': 'application/octet-stream',
+            'display_name': 'ReportCardApp.msix'
+        }
+    }
+
+    # Check which package is requested
+    package_type = request.GET.get('type', 'android')
+
+    if package_type not in packages:
+        return HttpResponse(
+            f"Invalid package type '{package_type}'. Available types: {', '.join(packages.keys())}",
+            status=400,
+            content_type='text/plain'
+        )
+
+    package_info = packages[package_type]
+    package_path = os.path.join(downloads_dir, package_info['filename'])
+
+    if not os.path.exists(package_path):
+        available_packages = []
+        for pkg_type, pkg_info in packages.items():
+            if os.path.exists(os.path.join(downloads_dir, pkg_info['filename'])):
+                available_packages.append(pkg_type)
+
+        if available_packages:
+            return HttpResponse(
+                f"{package_info['filename']} not found. Available packages: {', '.join(available_packages)}\n"
+                f"Download URLs:\n" +
+                '\n'.join([f"/download/apk/?type={pkg}" for pkg in available_packages]),
+                status=404,
+                content_type='text/plain'
+            )
+        else:
+            return HttpResponse(
+                "No mobile packages found. Please generate packages using PWABuilder:\n"
+                "1. Visit https://www.pwabuilder.com\n"
+                "2. Enter your app URL\n"
+                "3. Generate and download packages\n"
+                "4. Place APK/IPA/MSIX files in the downloads/ directory\n\n"
+                "Expected filenames:\n" +
+                '\n'.join([f"- downloads/{info['filename']}" for info in packages.values()]),
+                status=404,
+                content_type='text/plain'
+            )
+
+    try:
+        response = FileResponse(
+            open(package_path, 'rb'),
+            content_type=package_info['content_type']
+        )
+        response['Content-Disposition'] = f'attachment; filename="{package_info["display_name"]}"'
+        return response
+    except Exception as e:
+        return HttpResponse(
+            f"Error serving {package_info['filename']}: {str(e)}",
+            status=500,
+            content_type='text/plain'
+        )
 
 
 @login_required

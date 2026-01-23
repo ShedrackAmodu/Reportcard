@@ -185,11 +185,29 @@ async function doPeriodicSync() {
   try {
     console.log('Service Worker: Performing periodic data sync');
 
+    // Get stored user context
+    const userContext = await getStoredUserContext();
+    if (!userContext || !userContext.token) {
+      console.log('No user context available for sync');
+      return;
+    }
+
     // Get the last sync timestamp from IndexedDB or use a default
     const lastSync = await getLastSyncTime();
-    const syncUrl = `/api/sync/?last_sync=${lastSync.toISOString()}`;
+    let syncUrl = `/api/sync/?last_sync=${lastSync.toISOString()}`;
 
-    const response = await fetch(syncUrl);
+    // Add school_id if available
+    if (userContext.schoolId) {
+      syncUrl += `&school_id=${userContext.schoolId}`;
+    }
+
+    const response = await fetch(syncUrl, {
+      headers: {
+        'Authorization': `Bearer ${userContext.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
     if (!response.ok) {
       throw new Error('Periodic sync failed');
     }
@@ -198,10 +216,17 @@ async function doPeriodicSync() {
 
     // Update cached data with new/updated records
     for (const [model, data] of Object.entries(syncData)) {
+      if (model === '_meta') continue; // Skip metadata
+
       if (Array.isArray(data) && data.length > 0) {
         await cacheData(model, data);
         console.log(`Periodic sync: Updated ${data.length} ${model} records`);
       }
+    }
+
+    // Store sync metadata
+    if (syncData._meta) {
+      await setSyncMetadata(syncData._meta);
     }
 
     // Update last sync time
@@ -212,7 +237,7 @@ async function doPeriodicSync() {
     clients.forEach(client => {
       client.postMessage({
         type: 'PERIODIC_SYNC_COMPLETE',
-        data: Object.keys(syncData)
+        data: Object.keys(syncData).filter(key => key !== '_meta')
       });
     });
 
@@ -480,6 +505,60 @@ function getModelFromUrl(pathname) {
   return null;
 }
 
+// User context management
+async function storeUserContext(userData) {
+  const db = await openDB();
+  const transaction = db.transaction(['syncMetadata'], 'readwrite');
+
+  return new Promise((resolve, reject) => {
+    const store = transaction.objectStore('syncMetadata');
+    const request = store.put(userData, 'userContext');
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getStoredUserContext() {
+  const db = await openDB();
+  const transaction = db.transaction(['syncMetadata'], 'readonly');
+
+  return new Promise((resolve, reject) => {
+    const store = transaction.objectStore('syncMetadata');
+    const request = store.get('userContext');
+
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Sync metadata management
+async function setSyncMetadata(metadata) {
+  const db = await openDB();
+  const transaction = db.transaction(['syncMetadata'], 'readwrite');
+
+  return new Promise((resolve, reject) => {
+    const store = transaction.objectStore('syncMetadata');
+    const request = store.put(metadata, 'syncMeta');
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getSyncMetadata() {
+  const db = await openDB();
+  const transaction = db.transaction(['syncMetadata'], 'readonly');
+
+  return new Promise((resolve, reject) => {
+    const store = transaction.objectStore('syncMetadata');
+    const request = store.get('syncMeta');
+
+    request.onsuccess = () => resolve(request.result || {});
+    request.onerror = () => reject(request.error);
+  });
+}
+
 // Message handling from client
 self.addEventListener('message', event => {
   const { type, data, port } = event;
@@ -513,6 +592,29 @@ self.addEventListener('message', event => {
       doBackgroundSync()
         .then(() => port.postMessage({ success: true }))
         .catch(error => port.postMessage({ success: false, error: error.message }));
+      break;
+
+    case 'STORE_USER_CONTEXT':
+      storeUserContext(data)
+        .then(() => port.postMessage({ success: true }))
+        .catch(error => port.postMessage({ success: false, error: error.message }));
+      break;
+
+    case 'GET_USER_CONTEXT':
+      getStoredUserContext()
+        .then(context => port.postMessage(context))
+        .catch(error => port.postMessage(null));
+      break;
+
+    case 'CACHE_API_RESPONSE':
+      // Cache API response data in IndexedDB
+      if (data.model && data.data) {
+        cacheData(data.model, Array.isArray(data.data) ? data.data : [data.data])
+          .then(() => port.postMessage({ success: true }))
+          .catch(error => port.postMessage({ success: false, error: error.message }));
+      } else {
+        port.postMessage({ success: false, error: 'Invalid data format' });
+      }
       break;
 
     default:

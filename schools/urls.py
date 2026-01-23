@@ -9,7 +9,8 @@ from .views import (
     SchoolViewSet, UserViewSet, ClassSectionViewSet, SubjectViewSet,
     GradingScaleViewSet, GradingPeriodViewSet, StudentEnrollmentViewSet, GradeViewSet, AttendanceViewSet, sync_view, search_api_view,
     CustomTokenObtainPairView,
-    login_view, logout_view, register_view, dashboard_view, landing_view, school_switch, offline_view,
+    login_view, logout_view, register_view, dashboard_view, landing_view, school_switch, offline_view, manifest_view, sw_view,
+    apk_download_view,
     school_list, school_create, school_update, school_delete,
     user_list, user_create, user_update, user_delete,
     class_section_list, class_section_create, class_section_update, class_section_delete,
@@ -64,6 +65,10 @@ urlpatterns = [
 
     # Accounts (Authentication)
     path('accounts/', include(accounts_urlpatterns)),
+
+    # PWA files
+    path('manifest.json', manifest_view, name='manifest'),
+    path('sw.js', sw_view, name='sw'),
 
     # Root landing page
     path('', landing_view, name='landing'),
@@ -149,4 +154,7 @@ urlpatterns = [
     path('export/grades/excel/', export_grades_excel, name='export_grades_excel'),
     path('export/attendance/excel/', export_attendance_excel, name='export_attendance_excel'),
     path('export/users/csv/', export_users_csv, name='export_users_csv'),
+
+    # APK Download
+    path('download/apk/', apk_download_view, name='apk_download'),
 ]

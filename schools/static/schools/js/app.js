@@ -5,6 +5,9 @@ class ReportCardAppPWA {
         this.syncInProgress = false;
         this.pullToRefreshEnabled = false;
         this.touchStartY = 0;
+        this.installPrompt = null;
+        this.isInstallable = false;
+        this.isInstalled = false;
 
         this.init();
     }
@@ -17,6 +20,7 @@ class ReportCardAppPWA {
         this.setupOfflineForms();
         this.loadCachedData();
         this.setupPeriodicSync();
+        this.setupPWAInstall();
 
         // Check for conflicts on load
         this.checkForConflicts();
@@ -267,32 +271,74 @@ class ReportCardAppPWA {
                 await this.handleOfflineSubmission(form);
             }
         });
+
+        // Also handle online form submissions to update cache
+        document.addEventListener('submit', async (e) => {
+            const form = e.target;
+            if (this.isOnline && form.dataset.offline !== 'false') {
+                // Allow normal submission but also prepare for potential cache updates
+                // The service worker will handle caching API responses
+            }
+        });
     }
 
     async handleOfflineSubmission(form) {
         const formData = new FormData(form);
         const data = Object.fromEntries(formData.entries());
 
-        // Add to pending operations
+        // Determine the model type from form action or data attributes
+        const model = form.dataset.model || this.guessModelFromForm(form);
+
+        // Add to pending operations with enhanced metadata
         const operation = {
             type: 'form_submission',
+            model: model,
             url: form.action,
             method: form.method || 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': this.getCsrfToken()
+                'X-CSRFToken': this.getCsrfToken(),
+                'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`
             },
             body: new URLSearchParams(data).toString(),
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            formData: data
         };
 
         try {
             await this.addPendingOperation(operation);
             this.showOfflineNotification('Form saved offline. Will sync when online.');
             form.reset();
+
+            // Add visual indicator to the form
+            this.addOfflineIndicatorToForm(form);
         } catch (error) {
             console.error('Failed to save offline:', error);
             this.showOfflineNotification('Failed to save offline. Please try again.', 'error');
+        }
+    }
+
+    guessModelFromForm(form) {
+        // Try to determine model from form action URL
+        const action = form.action;
+        if (action.includes('/grades/')) return 'grades';
+        if (action.includes('/attendance/')) return 'attendance';
+        if (action.includes('/users/')) return 'users';
+        if (action.includes('/class-sections/')) return 'classSections';
+        if (action.includes('/subjects/')) return 'subjects';
+        return 'unknown';
+    }
+
+    addOfflineIndicatorToForm(form) {
+        // Add a small indicator to show this form has offline data
+        const indicator = document.createElement('small');
+        indicator.className = 'text-warning ms-2';
+        indicator.textContent = '(saved offline)';
+
+        const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+        if (submitBtn) {
+            submitBtn.parentNode.insertBefore(indicator, submitBtn.nextSibling);
+            setTimeout(() => indicator.remove(), 3000); // Remove after 3 seconds
         }
     }
 
@@ -327,14 +373,63 @@ class ReportCardAppPWA {
     }
 
     async loadCachedData() {
-        // Load cached data for offline viewing
+        // Load cached data for offline viewing and hybrid online/offline mode
         const tables = document.querySelectorAll('table[data-model]');
         for (const table of tables) {
             const model = table.dataset.model;
-            if (!this.isOnline) {
-                await this.loadTableFromCache(table, model);
+            await this.loadTableFromCache(table, model);
+        }
+
+        // Also try to load data from API if online
+        if (this.isOnline) {
+            this.loadLiveData();
+        }
+    }
+
+    async loadLiveData() {
+        // Load fresh data from API and update cache
+        const tables = document.querySelectorAll('table[data-model]');
+        for (const table of tables) {
+            const model = table.dataset.model;
+            const apiUrl = this.getApiUrlForModel(model);
+
+            if (apiUrl) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Update cache with fresh data
+                        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.controller.postMessage({
+                                type: 'CACHE_API_RESPONSE',
+                                url: apiUrl,
+                                data: data,
+                                model: model
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.log('Failed to load live data for', model, error);
+                }
             }
         }
+    }
+
+    getApiUrlForModel(model) {
+        const modelUrls = {
+            'grades': '/api/grades/',
+            'attendance': '/api/attendance/',
+            'users': '/api/users/',
+            'classSections': '/api/class-sections/',
+            'subjects': '/api/subjects/'
+        };
+        return modelUrls[model];
     }
 
     async loadTableFromCache(table, model) {
@@ -342,11 +437,35 @@ class ReportCardAppPWA {
             const cachedData = await this.getCachedData(model);
             if (cachedData && cachedData.length > 0) {
                 this.populateTable(table, cachedData);
-                table.classList.add('offline-indicator');
+                if (!this.isOnline) {
+                    table.classList.add('offline-indicator');
+                }
+            } else if (!this.isOnline) {
+                // Show no data message when offline and no cache
+                this.showNoOfflineData(table, model);
             }
         } catch (error) {
             console.error('Failed to load cached data:', error);
+            if (!this.isOnline) {
+                this.showNoOfflineData(table, model);
+            }
         }
+    }
+
+    showNoOfflineData(table, model) {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="100%" class="text-center text-muted py-4">
+                    <i class="bi bi-wifi-off fs-3 d-block mb-2"></i>
+                    <strong>No cached data available</strong><br>
+                    <small>Connect to internet to load ${model} data</small>
+                </td>
+            </tr>
+        `;
+        table.classList.add('offline-indicator');
     }
 
     async getCachedData(model) {
@@ -576,11 +695,145 @@ class ReportCardAppPWA {
             this.updateNetworkQuality('offline');
         }
     }
+
+    setupPWAInstall() {
+        // Check if already installed
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+            this.isInstalled = true;
+            return;
+        }
+
+        // Listen for the beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.installPrompt = e;
+            this.isInstallable = true;
+            this.showInstallButtons();
+        });
+
+        // Listen for successful installation
+        window.addEventListener('appinstalled', (e) => {
+            this.isInstalled = true;
+            this.installPrompt = null;
+            this.isInstallable = false;
+            this.hideInstallButtons();
+            this.showOfflineNotification('App installed successfully!', 'success');
+        });
+
+        // Check if installable after a delay (fallback)
+        setTimeout(() => {
+            if (!this.isInstallable && !this.isInstalled && 'onbeforeinstallprompt' in window) {
+                this.checkInstallability();
+            }
+        }, 3000);
+    }
+
+    async checkInstallability() {
+        // Fallback check for installability
+        if ('getInstalledRelatedApps' in navigator) {
+            try {
+                const relatedApps = await navigator.getInstalledRelatedApps();
+                const isRelatedAppInstalled = relatedApps.some(app => app.url === window.location.origin);
+
+                if (!isRelatedAppInstalled) {
+                    this.isInstallable = true;
+                    this.showInstallButtons();
+                }
+            } catch (error) {
+                console.log('Related apps check failed:', error);
+            }
+        }
+    }
+
+    showInstallButtons() {
+        const installButtons = document.querySelectorAll('.install-app-btn');
+        installButtons.forEach(button => {
+            button.style.display = 'inline-block';
+            button.disabled = false;
+            button.textContent = 'Install App';
+            button.onclick = () => this.installApp();
+        });
+    }
+
+    hideInstallButtons() {
+        const installButtons = document.querySelectorAll('.install-app-btn');
+        installButtons.forEach(button => {
+            button.style.display = 'none';
+        });
+    }
+
+    async installApp() {
+        if (!this.installPrompt) {
+            this.showOfflineNotification('Installation not available at this time.', 'error');
+            return;
+        }
+
+        try {
+            const result = await this.installPrompt.prompt();
+            const choiceResult = await this.installPrompt.userChoice;
+
+            if (choiceResult.outcome === 'accepted') {
+                this.showOfflineNotification('Installing...', 'success');
+            } else {
+                this.showOfflineNotification('Installation cancelled.', 'error');
+            }
+
+            this.installPrompt = null;
+        } catch (error) {
+            console.error('Installation failed:', error);
+            this.showOfflineNotification('Installation failed. Please try again.', 'error');
+        }
+    }
+}
+
+// Store user context in service worker when user data is available
+async function storeUserContextInSW() {
+    // Try to get user data from Django context or localStorage
+    let userData = null;
+
+    // Check if we have user data in a global variable (set by Django template)
+    if (typeof window.userData !== 'undefined') {
+        userData = window.userData;
+    } else {
+        // Try to get from localStorage or other sources
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        if (token) {
+            userData = { token: token };
+        }
+    }
+
+    if (userData && userData.token) {
+        // Extract school ID if available
+        let schoolId = null;
+        if (userData.school_id) {
+            schoolId = userData.school_id;
+        } else if (typeof window.schoolId !== 'undefined') {
+            schoolId = window.schoolId;
+        }
+
+        const context = {
+            token: userData.token,
+            userId: userData.id,
+            schoolId: schoolId,
+            role: userData.role
+        };
+
+        // Store in service worker
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                type: 'STORE_USER_CONTEXT',
+                data: context
+            });
+        }
+    }
 }
 
 // Initialize PWA when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.pwa = new ReportCardAppPWA();
+
+    // Store user context for offline sync
+    storeUserContextInSW();
 
     // Measure network quality periodically
     setInterval(() => {

@@ -24,9 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-@^oju396xj(3-u8%3qq@&-p-lvxm6(s#$4a**fy_brg=6kmj2m"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False  # Set to False in production
+DEBUG = True  # Set to False in production
 
-ALLOWED_HOSTS = ['2feedf0f7bce.ngrok-free.app', 'localhost', '127.0.0.1']  # Add your PythonAnywhere domain and ngrok domain
+ALLOWED_HOSTS = ['d15fb01a0276.ngrok-free.app', '2feedf0f7bce.ngrok-free.app', 'c7769ba438b8.ngrok-free.app', 'localhost', '127.0.0.1', 'amodu.pythonanywhere.com']  # Add your PythonAnywhere domain and ngrok domain
 
 
 # Application definition
