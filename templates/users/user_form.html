@@ -1,0 +1,1030 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - ReportCardApp{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: white;
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--primary-color, #667eea);
+        transition: var(--transition);
+    }
+
+    .form-section:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+    }
+
+    .form-section-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--primary-color, #667eea)20 0%, var(--secondary-color, #764ba2)20 100%);
+        color: var(--primary-color, #667eea);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.25rem;
+    }
+
+    .form-group-enhanced {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .form-label-enhanced {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #333;
+        transition: var(--transition);
+    }
+
+    .form-control-enhanced {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: var(--border-radius-md);
+        font-size: 1rem;
+        transition: var(--transition);
+        background: white;
+    }
+
+    .form-control-enhanced:focus {
+        outline: none;
+        border-color: var(--primary-color, #667eea);
+        box-shadow: 0 0 0 3px rgba(var(--primary-color, 102, 126, 234), 0.1);
+    }
+
+    .form-control-enhanced.error {
+        border-color: #dc3545;
+        background: rgba(220, 53, 69, 0.05);
+    }
+
+    .form-control-enhanced.success {
+        border-color: #28a745;
+        background: rgba(40, 167, 69, 0.05);
+    }
+
+    .form-feedback {
+        display: flex;
+        align-items: center;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        transition: var(--transition);
+    }
+
+    .form-feedback.error {
+        color: #dc3545;
+    }
+
+    .form-feedback.success {
+        color: #28a745;
+    }
+
+    .form-feedback.info {
+        color: #17a2b8;
+    }
+
+    .form-feedback-icon {
+        margin-right: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .password-strength {
+        margin-top: 0.5rem;
+    }
+
+    .password-strength-bar {
+        height: 4px;
+        border-radius: 2px;
+        background: #e0e0e0;
+        overflow: hidden;
+        margin-bottom: 0.25rem;
+    }
+
+    .password-strength-fill {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease;
+        background: #dc3545;
+    }
+
+    .password-strength-fill.weak { width: 25%; background: #dc3545; }
+    .password-strength-fill.fair { width: 50%; background: #ffc107; }
+    .password-strength-fill.good { width: 75%; background: #28a745; }
+    .password-strength-fill.strong { width: 100%; background: #20c997; }
+
+    .password-strength-text {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .preview-card {
+        background: white;
+        border-radius: var(--border-radius-md);
+        box-shadow: var(--shadow-sm);
+        padding: 1.5rem;
+        margin-top: 2rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: var(--transition);
+    }
+
+    .preview-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .preview-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .preview-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color, #667eea) 0%, var(--secondary-color, #764ba2) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        font-weight: bold;
+    }
+
+    .preview-info {
+        flex: 1;
+    }
+
+    .preview-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: #333;
+    }
+
+    .preview-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .preview-detail-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background: rgba(var(--primary-color, 102, 126, 234), 0.1);
+        border-radius: var(--border-radius-sm);
+        color: var(--primary-color, #667eea);
+        font-size: 0.875rem;
+    }
+
+    .preview-detail-icon {
+        margin-right: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .role-badge.super_admin { background: #dc3545; color: white; }
+    .role-badge.admin { background: #007bff; color: white; }
+    .role-badge.teacher { background: #28a745; color: white; }
+    .role-badge.student { background: #6c757d; color: white; }
+
+    .form-toggle {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 30px;
+        margin-right: 1rem;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 30px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 22px;
+        width: 22px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+        background-color: var(--primary-color, #667eea);
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(30px);
+    }
+
+    .toggle-label {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .password-reveal {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #6c757d;
+        cursor: pointer;
+        padding: 0.25rem;
+        transition: var(--transition);
+    }
+
+    .password-reveal:hover {
+        color: var(--primary-color, #667eea);
+    }
+
+    @media (max-width: 768px) {
+        .form-section {
+            padding: 1.5rem;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .preview-details {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+        .form-section {
+            background: rgba(30, 30, 46, 0.8);
+            border-left-color: var(--primary-color, #667eea);
+        }
+
+        .form-section-header {
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .form-label-enhanced {
+            color: #e0e0e0;
+        }
+
+        .form-control-enhanced {
+            background: rgba(30, 30, 46, 0.9);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+        }
+
+        .form-control-enhanced:focus {
+            border-color: var(--primary-color, #667eea);
+            background: rgba(30, 30, 46, 1);
+        }
+
+        .preview-card {
+            background: rgba(30, 30, 46, 0.8);
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .preview-header {
+            border-bottom-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .preview-name {
+            color: #e0e0e0;
+        }
+
+        .preview-detail-item {
+            background: rgba(var(--primary-color, 102, 126, 234), 0.2);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .toggle-label {
+            color: #e0e0e0;
+        }
+
+        .password-strength-bar {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header shadow-sm mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h2 fw-bold mb-2">{{ title }}</h1>
+                <p class="text-muted mb-0">
+                    {% if user_obj %}
+                        Edit user information and permissions
+                    {% else %}
+                        Create a new user account with specific role and access
+                    {% endif %}
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'user_list' %}" class="btn btn-outline-secondary rounded-pill">
+                    <i class="bi bi-arrow-left me-1"></i>Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Form -->
+        <div class="col-lg-8">
+            <div class="form-section">
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <i class="bi bi-person-badge"></i>
+                    </div>
+                    <div>
+                        <h3 class="h5 mb-1">User Information</h3>
+                        <p class="text-muted small mb-0">Enter basic user details and credentials</p>
+                    </div>
+                </div>
+
+                <form method="post" id="userForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Username and Email -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-enhanced">
+                                <label for="{{ form.username.id_for_label }}" class="form-label-enhanced">
+                                    <i class="bi bi-person me-1"></i>Username
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       id="{{ form.username.id_for_label }}" 
+                                       name="{{ form.username.name }}" 
+                                       class="form-control-enhanced" 
+                                       value="{{ form.username.value|default:'' }}" 
+                                       placeholder="Enter username"
+                                       required
+                                       autocomplete="username">
+                                <div class="form-feedback" id="username-feedback"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-enhanced">
+                                <label for="{{ form.email.id_for_label }}" class="form-label-enhanced">
+                                    <i class="bi bi-envelope me-1"></i>Email Address
+                                </label>
+                                <input type="email" 
+                                       id="{{ form.email.id_for_label }}" 
+                                       name="{{ form.email.name }}" 
+                                       class="form-control-enhanced" 
+                                       value="{{ form.email.value|default:'' }}" 
+                                       placeholder="user@example.com"
+                                       autocomplete="email">
+                                <div class="form-feedback" id="email-feedback"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- First and Last Name -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-enhanced">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label-enhanced">
+                                    <i class="bi bi-person-vcard me-1"></i>First Name
+                                </label>
+                                <input type="text" 
+                                       id="{{ form.first_name.id_for_label }}" 
+                                       name="{{ form.first_name.name }}" 
+                                       class="form-control-enhanced" 
+                                       value="{{ form.first_name.value|default:'' }}" 
+                                       placeholder="Enter first name"
+                                       autocomplete="given-name">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-enhanced">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label-enhanced">
+                                    <i class="bi bi-person-vcard me-1"></i>Last Name
+                                </label>
+                                <input type="text" 
+                                       id="{{ form.last_name.id_for_label }}" 
+                                       name="{{ form.last_name.name }}" 
+                                       class="form-control-enhanced" 
+                                       value="{{ form.last_name.value|default:'' }}" 
+                                       placeholder="Enter last name"
+                                       autocomplete="family-name">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Role and School -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-enhanced">
+                                <label for="{{ form.role.id_for_label }}" class="form-label-enhanced">
+                                    <i class="bi bi-shield me-1"></i>User Role
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select id="{{ form.role.id_for_label }}" 
+                                        name="{{ form.role.name }}" 
+                                        class="form-control-enhanced" 
+                                        required>
+                                    {% for value, label in form.role.field.choices %}
+                                        <option value="{{ value }}" 
+                                                {% if form.role.value == value %}selected{% endif %}
+                                                data-description="{{ label }} - {{ value }}">
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-feedback info mt-2" id="role-description">
+                                    <i class="bi bi-info-circle form-feedback-icon"></i>
+                                    <span>Select a role to define user permissions</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-enhanced">
+                                <label for="{{ form.school.id_for_label }}" class="form-label-enhanced">
+                                    <i class="bi bi-building me-1"></i>School
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select id="{{ form.school.id_for_label }}" 
+                                        name="{{ form.school.name }}" 
+                                        class="form-control-enhanced" 
+                                        required>
+                                    {% for school in form.school.field.queryset %}
+                                        <option value="{{ school.id }}" 
+                                                {% if form.school.value == school.id %}selected{% endif %}>
+                                            {{ school.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password Field (only for new users) -->
+                    {% if not user_obj %}
+                    <div class="form-section mt-4">
+                        <div class="form-section-header">
+                            <div class="form-section-icon">
+                                <i class="bi bi-key"></i>
+                            </div>
+                            <div>
+                                <h3 class="h5 mb-1">Security Settings</h3>
+                                <p class="text-muted small mb-0">Set user credentials and password rules</p>
+                            </div>
+                        </div>
+
+                        <div class="form-toggle">
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="generate-password" name="generate_password">
+                                <span class="toggle-slider"></span>
+                            </div>
+                            <label for="generate-password" class="toggle-label">
+                                Generate random password
+                            </label>
+                        </div>
+
+                        <div class="form-group-enhanced" id="password-field">
+                            <label for="{{ form.password.id_for_label }}" class="form-label-enhanced">
+                                <i class="bi bi-lock me-1"></i>Password
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div style="position: relative;">
+                                <input type="password" 
+                                       id="{{ form.password.id_for_label }}" 
+                                       name="{{ form.password.name }}" 
+                                       class="form-control-enhanced" 
+                                       placeholder="Enter secure password"
+                                       autocomplete="new-password">
+                                <button type="button" class="password-reveal" id="toggle-password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="password-strength">
+                                <div class="password-strength-bar">
+                                    <div class="password-strength-fill" id="password-strength-bar"></div>
+                                </div>
+                                <div class="password-strength-text" id="password-strength-text">
+                                    Password strength: None
+                                </div>
+                            </div>
+                            <div class="form-feedback info mt-2">
+                                <i class="bi bi-info-circle form-feedback-icon"></i>
+                                <span>Password must be at least 8 characters with letters and numbers</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <button type="reset" class="btn btn-outline-secondary rounded-pill">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Reset Form
+                        </button>
+                        <button type="submit" class="btn btn-gradient rounded-pill" id="submit-btn">
+                            {% if user_obj %}
+                                <i class="bi bi-check-circle me-1"></i>Update User
+                            {% else %}
+                                <i class="bi bi-person-plus me-1"></i>Create User
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="col-lg-4">
+            <div class="preview-card">
+                <div class="preview-header">
+                    <div class="preview-avatar" id="preview-avatar">
+                        UN
+                    </div>
+                    <div class="preview-info">
+                        <div class="preview-name" id="preview-name">No Name</div>
+                        <div class="role-badge student" id="preview-role">Student</div>
+                    </div>
+                </div>
+
+                <div class="preview-details">
+                    <div class="preview-detail-item">
+                        <i class="bi bi-person preview-detail-icon"></i>
+                        <span id="preview-username">username</span>
+                    </div>
+                    <div class="preview-detail-item">
+                        <i class="bi bi-building preview-detail-icon"></i>
+                        <span id="preview-school">School</span>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <h6 class="mb-2 text-muted">Role Description</h6>
+                    <p class="small text-muted mb-3" id="role-description-text">
+                        Role descriptions will appear here when selected
+                    </p>
+                </div>
+
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-2 text-muted">Quick Actions</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-primary rounded-pill" onclick="fillSampleData()">
+                            <i class="bi bi-magic me-1"></i>Sample Data
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="clearForm()">
+                            <i class="bi bi-x-circle me-1"></i>Clear All
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Validation Status -->
+            <div class="preview-card mt-3">
+                <h6 class="mb-3">Form Status</h6>
+                <div class="d-flex align-items-center mb-2">
+                    <div class="rounded-circle bg-success d-flex align-items-center justify-content-center me-2" 
+                         style="width: 24px; height: 24px;">
+                        <i class="bi bi-check text-white"></i>
+                    </div>
+                    <span class="small">Username: <span id="status-username" class="text-success">Available</span></span>
+                </div>
+                <div class="d-flex align-items-center mb-2">
+                    <div class="rounded-circle bg-warning d-flex align-items-center justify-content-center me-2" 
+                         style="width: 24px; height: 24px;">
+                        <i class="bi bi-dash text-white"></i>
+                    </div>
+                    <span class="small">Email: <span id="status-email" class="text-warning">Not checked</span></span>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-info d-flex align-items-center justify-content-center me-2" 
+                         style="width: 24px; height: 24px;">
+                        <i class="bi bi-info text-white"></i>
+                    </div>
+                    <span class="small">Password: <span id="status-password" class="text-info">Required</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Form elements
+        const form = document.getElementById('userForm');
+        const usernameInput = document.getElementById('{{ form.username.id_for_label }}');
+        const emailInput = document.getElementById('{{ form.email.id_for_label }}');
+        const firstNameInput = document.getElementById('{{ form.first_name.id_for_label }}');
+        const lastNameInput = document.getElementById('{{ form.last_name.id_for_label }}');
+        const roleSelect = document.getElementById('{{ form.role.id_for_label }}');
+        const schoolSelect = document.getElementById('{{ form.school.id_for_label }}');
+        const passwordInput = document.getElementById('{{ form.password.id_for_label }}');
+        const generatePasswordToggle = document.getElementById('generate-password');
+        const togglePasswordBtn = document.getElementById('toggle-password');
+        
+        // Preview elements
+        const previewAvatar = document.getElementById('preview-avatar');
+        const previewName = document.getElementById('preview-name');
+        const previewUsername = document.getElementById('preview-username');
+        const previewSchool = document.getElementById('preview-school');
+        const previewRole = document.getElementById('preview-role');
+        const roleDescription = document.getElementById('role-description-text');
+        
+        // Status elements
+        const statusUsername = document.getElementById('status-username');
+        const statusEmail = document.getElementById('status-email');
+        const statusPassword = document.getElementById('status-password');
+        
+        // Password strength elements
+        const passwordStrengthBar = document.getElementById('password-strength-bar');
+        const passwordStrengthText = document.getElementById('password-strength-text');
+        
+        // Role descriptions
+        const roleDescriptions = {
+            'super_admin': 'Full system access across all schools. Can manage everything.',
+            'admin': 'Manage school-specific settings, users, and data within assigned school.',
+            'teacher': 'Can manage classes, grades, attendance, and view student data.',
+            'student': 'View personal grades, attendance, and report cards.'
+        };
+
+        // Initialize form with existing data
+        updatePreview();
+        
+        // Real-time form validation and preview update
+        usernameInput.addEventListener('input', function() {
+            validateUsername();
+            updatePreview();
+        });
+
+        emailInput.addEventListener('input', function() {
+            validateEmail();
+            updatePreview();
+        });
+
+        firstNameInput.addEventListener('input', updatePreview);
+        lastNameInput.addEventListener('input', updatePreview);
+        
+        roleSelect.addEventListener('change', function() {
+            updatePreview();
+            updateRoleDescription();
+        });
+
+        schoolSelect.addEventListener('change', updatePreview);
+
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function() {
+                updatePasswordStrength();
+                updatePasswordStatus();
+            });
+        }
+
+        // Password toggle functionality
+        if (togglePasswordBtn) {
+            togglePasswordBtn.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                this.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+            });
+        }
+
+        // Generate password toggle
+        if (generatePasswordToggle) {
+            generatePasswordToggle.addEventListener('change', function() {
+                const passwordField = document.getElementById('password-field');
+                if (this.checked) {
+                    const randomPassword = generateRandomPassword(12);
+                    passwordInput.value = randomPassword;
+                    passwordInput.setAttribute('type', 'text');
+                    togglePasswordBtn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+                    updatePasswordStrength();
+                    updatePasswordStatus();
+                }
+            });
+        }
+
+        // Form submission with validation
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (validateForm()) {
+                showLoading();
+                this.submit();
+            } else {
+                showToast('Please fix the errors in the form before submitting.', 'error');
+            }
+        });
+
+        // Functions
+        function validateUsername() {
+            const username = usernameInput.value.trim();
+            const feedback = document.getElementById('username-feedback');
+            
+            if (!username) {
+                setFieldError(usernameInput, feedback, 'Username is required');
+                statusUsername.textContent = 'Required';
+                statusUsername.className = 'text-danger';
+                return false;
+            }
+            
+            if (username.length < 3) {
+                setFieldError(usernameInput, feedback, 'Username must be at least 3 characters');
+                statusUsername.textContent = 'Too short';
+                statusUsername.className = 'text-danger';
+                return false;
+            }
+            
+            if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                setFieldError(usernameInput, feedback, 'Username can only contain letters, numbers, and underscores');
+                statusUsername.textContent = 'Invalid format';
+                statusUsername.className = 'text-danger';
+                return false;
+            }
+            
+            setFieldSuccess(usernameInput, feedback, 'Username is available');
+            statusUsername.textContent = 'Available';
+            statusUsername.className = 'text-success';
+            return true;
+        }
+
+        function validateEmail() {
+            const email = emailInput.value.trim();
+            const feedback = document.getElementById('email-feedback');
+            
+            if (!email) {
+                clearFieldStatus(emailInput, feedback);
+                statusEmail.textContent = 'Optional';
+                statusEmail.className = 'text-muted';
+                return true;
+            }
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                setFieldError(emailInput, feedback, 'Please enter a valid email address');
+                statusEmail.textContent = 'Invalid';
+                statusEmail.className = 'text-danger';
+                return false;
+            }
+            
+            setFieldSuccess(emailInput, feedback, 'Email address is valid');
+            statusEmail.textContent = 'Valid';
+            statusEmail.className = 'text-success';
+            return true;
+        }
+
+        function updatePasswordStrength() {
+            if (!passwordInput) return;
+            
+            const password = passwordInput.value;
+            let strength = 0;
+            let text = 'None';
+            let className = '';
+            
+            if (password.length >= 8) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[a-z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+            
+            switch(strength) {
+                case 0:
+                case 1:
+                    text = 'Very Weak';
+                    className = 'weak';
+                    break;
+                case 2:
+                    text = 'Weak';
+                    className = 'weak';
+                    break;
+                case 3:
+                    text = 'Fair';
+                    className = 'fair';
+                    break;
+                case 4:
+                    text = 'Good';
+                    className = 'good';
+                    break;
+                case 5:
+                    text = 'Strong';
+                    className = 'strong';
+                    break;
+            }
+            
+            passwordStrengthBar.className = `password-strength-fill ${className}`;
+            passwordStrengthText.textContent = `Password strength: ${text}`;
+        }
+
+        function updatePasswordStatus() {
+            if (!passwordInput) return;
+            
+            const password = passwordInput.value;
+            if (!password) {
+                statusPassword.textContent = 'Required';
+                statusPassword.className = 'text-danger';
+                return;
+            }
+            
+            if (password.length < 8) {
+                statusPassword.textContent = 'Too short';
+                statusPassword.className = 'text-danger';
+                return;
+            }
+            
+            statusPassword.textContent = 'Valid';
+            statusPassword.className = 'text-success';
+        }
+
+        function updatePreview() {
+            // Update avatar with initials
+            const firstName = firstNameInput.value.trim();
+            const lastName = lastNameInput.value.trim();
+            let initials = 'UN';
+            
+            if (firstName || lastName) {
+                initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || 'UN';
+            }
+            previewAvatar.textContent = initials;
+            
+            // Update name
+            const fullName = `${firstName} ${lastName}`.trim() || 'No Name';
+            previewName.textContent = fullName;
+            
+            // Update username
+            previewUsername.textContent = usernameInput.value.trim() || 'username';
+            
+            // Update role
+            const role = roleSelect.value;
+            const roleLabel = roleSelect.options[roleSelect.selectedIndex].text;
+            previewRole.textContent = roleLabel;
+            previewRole.className = `role-badge ${role}`;
+            
+            // Update school
+            const schoolName = schoolSelect.options[schoolSelect.selectedIndex].text;
+            previewSchool.textContent = schoolName;
+        }
+
+        function updateRoleDescription() {
+            const role = roleSelect.value;
+            roleDescription.textContent = roleDescriptions[role] || 'Select a role to see description';
+        }
+
+        function validateForm() {
+            const isUsernameValid = validateUsername();
+            const isEmailValid = validateEmail();
+            let isPasswordValid = true;
+            
+            if (passwordInput) {
+                isPasswordValid = passwordInput.value.length >= 8;
+            }
+            
+            return isUsernameValid && isEmailValid && isPasswordValid;
+        }
+
+        function setFieldError(input, feedback, message) {
+            input.classList.add('error');
+            input.classList.remove('success');
+            feedback.className = 'form-feedback error';
+            feedback.innerHTML = `<i class="bi bi-exclamation-circle form-feedback-icon"></i>${message}`;
+            feedback.style.display = 'flex';
+        }
+
+        function setFieldSuccess(input, feedback, message) {
+            input.classList.remove('error');
+            input.classList.add('success');
+            feedback.className = 'form-feedback success';
+            feedback.innerHTML = `<i class="bi bi-check-circle form-feedback-icon"></i>${message}`;
+            feedback.style.display = 'flex';
+        }
+
+        function clearFieldStatus(input, feedback) {
+            input.classList.remove('error', 'success');
+            feedback.style.display = 'none';
+        }
+
+        function generateRandomPassword(length) {
+            const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+            let password = "";
+            for (let i = 0; i < length; i++) {
+                password += charset.charAt(Math.floor(Math.random() * charset.length));
+            }
+            return password;
+        }
+
+        function showLoading() {
+            const submitBtn = document.getElementById('submit-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+            submitBtn.disabled = true;
+            
+            // Revert after 3 seconds (in case form submission fails)
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }, 3000);
+        }
+
+        // Global functions for quick actions
+        window.fillSampleData = function() {
+            firstNameInput.value = 'John';
+            lastNameInput.value = 'Doe';
+            usernameInput.value = 'johndoe' + Math.floor(Math.random() * 1000);
+            emailInput.value = 'john.doe@example.com';
+            roleSelect.value = 'teacher';
+            
+            if (passwordInput) {
+                passwordInput.value = 'SecurePass123!';
+                updatePasswordStrength();
+                updatePasswordStatus();
+            }
+            
+            updatePreview();
+            updateRoleDescription();
+            validateUsername();
+            validateEmail();
+            
+            showToast('Sample data filled. Remember to change the password!', 'info');
+        };
+
+        window.clearForm = function() {
+            if (confirm('Are you sure you want to clear all form data?')) {
+                form.reset();
+                updatePreview();
+                updateRoleDescription();
+                updatePasswordStrength();
+                updatePasswordStatus();
+                validateUsername();
+                validateEmail();
+                showToast('Form cleared successfully', 'info');
+            }
+        };
+
+        // Initialize role description
+        updateRoleDescription();
+    });
+</script>
+{% endblock %}

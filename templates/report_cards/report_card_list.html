@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+
+            <!-- Filter Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Filter Students</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="class_section" class="form-label">Class Section</label>
+                            <select name="class_section" id="class_section" class="form-select">
+                                <option value="">All Classes</option>
+                                {% for class_section in class_sections %}
+                                    <option value="{{ class_section.id }}" {% if class_section.id|stringformat:"s" == selected_class_id %}selected{% endif %}>
+                                        {{ class_section.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if students %}
+            <!-- Students List -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Students ({{ students|length }})</h5>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateAllPDFs()">
+                            <i class="fas fa-download"></i> Generate All PDFs
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Username</th>
+                                    <th>Class</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ student.get_full_name }}</strong>
+                                    </td>
+                                    <td>{{ student.username }}</td>
+                                    <td>
+                                        {% with enrollment=student.enrollments.first %}
+                                            {{ enrollment.class_section.name|default:"Not enrolled" }}
+                                        {% endwith %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'report_card_pdf' student.id %}"
+                                               class="btn btn-sm btn-primary"
+                                               target="_blank">
+                                                <i class="fas fa-file-pdf"></i> Download PDF
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                No students found. Create students and enroll them in classes to generate report cards.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function generateAllPDFs() {
+    if (confirm('This will open multiple PDF downloads. Are you sure you want to continue?')) {
+        // Get all PDF links and open them
+        const links = document.querySelectorAll('a[href*="report_card_pdf"]');
+        links.forEach((link, index) => {
+            // Add a small delay between openings to avoid browser blocking
+            setTimeout(() => {
+                window.open(link.href, '_blank');
+            }, index * 500);
+        });
+    }
+}
+</script>
+{% endblock %}

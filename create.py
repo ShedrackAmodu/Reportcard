@@ -41,6 +41,10 @@ def main():
     if not run_command("pip install -r requirements.txt", "Installing Python requirements"):
         return False
 
+    # Create migrations for apps
+    if not run_command("python manage.py makemigrations apps", "Creating database migrations"):
+        return False
+
     # Run migrations
     if not run_command("python manage.py migrate", "Running database migrations"):
         return False
@@ -53,13 +57,8 @@ def main():
     if not run_command("python manage.py collectstatic --clear --noinput", "Collecting static files"):
         return False
 
-    # Compress static files (for production) - optional if no compress tags
-    if not run_command("python manage.py compress", "Compressing static files"):
-        print("⚠️  Static file compression failed (possibly no compress tags in templates), continuing...")
+    # Note: Static file compression step removed as 'compress' command is not available
 
-    # Create initial backup
-    if not run_command("python manage.py backup_db", "Creating initial database backup"):
-        print("⚠️  Backup creation failed, but continuing...")
 
     # Create superuser if it doesn't exist
     print("\n🔄 Checking for superuser...")
@@ -74,11 +73,7 @@ def main():
 
         if not User.objects.filter(is_superuser=True).exists():
             print("No superuser found. Creating one...")
-            username = input("Enter superuser username: ").strip()
-            email = input("Enter superuser email: ").strip()
-            password = input("Enter superuser password: ").strip()
-
-            User.objects.create_superuser(username=username, email=email, password=password)
+            User.objects.create_superuser(username='drmk', email='', password='drmk')
             print("✅ Superuser created successfully")
         else:
             print("✅ Superuser already exists")
@@ -91,7 +86,6 @@ def main():
     print("2. Set up SSL/HTTPS")
     print("3. Configure ALLOWED_HOSTS in settings.py")
     print("4. Set DEBUG=False in production")
-    print("5. Schedule regular backups with: python manage.py backup_db")
     print("6. Start the application server")
 
     return True

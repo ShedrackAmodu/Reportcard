@@ -1,0 +1,758 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 6rem 0;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+        opacity: 0.1;
+    }
+    
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, #ffffff, #e2e8ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .hero-subtitle {
+        font-size: 1.25rem;
+        color: rgba(255,255,255,0.9);
+        max-width: 600px;
+        margin: 0 auto 2rem;
+    }
+    
+    .feature-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    .feature-icon i {
+        font-size: 2rem;
+        background: linear-gradient(to right, #ffffff, #e2e8ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .cta-section {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        padding: 4rem 0;
+    }
+    
+    .demo-card {
+        background: rgba(255,255,255,0.95);
+        border-radius: var(--border-radius-lg);
+        padding: 2rem;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        transition: var(--transition);
+        border: 1px solid rgba(255,255,255,0.2);
+        backdrop-filter: blur(10px);
+    }
+    
+    .demo-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 30px 60px rgba(0,0,0,0.15);
+    }
+    
+    .step-number {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.25rem;
+        margin: 0 auto 1rem;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .testimonial-card {
+        background: white;
+        border-radius: var(--border-radius-lg);
+        padding: 2rem;
+        box-shadow: var(--shadow-md);
+        border-left: 4px solid #667eea;
+        transition: var(--transition);
+    }
+    
+    .testimonial-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .pricing-card {
+        background: white;
+        border-radius: var(--border-radius-lg);
+        padding: 2.5rem;
+        box-shadow: var(--shadow-md);
+        border: 2px solid transparent;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .pricing-card.popular {
+        border-color: #667eea;
+        transform: scale(1.05);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
+    }
+    
+    .pricing-card.popular::before {
+        content: 'Most Popular';
+        position: absolute;
+        top: 20px;
+        right: -35px;
+        background: #667eea;
+        color: white;
+        padding: 0.5rem 3rem;
+        transform: rotate(45deg);
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+    
+    .scroll-indicator {
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        opacity: 0.7;
+        animation: bounce 2s infinite;
+    }
+    
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {
+            transform: translateY(0) translateX(-50%);
+        }
+        40% {
+            transform: translateY(-10px) translateX(-50%);
+        }
+        60% {
+            transform: translateY(-5px) translateX(-50%);
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2.5rem;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.1rem;
+        }
+        
+        .pricing-card.popular {
+            transform: none;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+    }
+    
+    /* Install Button Styles */
+    .install-app-btn {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .install-app-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    }
+    
+    .install-app-btn.installing {
+        opacity: 0.8;
+        cursor: not-allowed;
+    }
+    
+    .install-app-btn.installed {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        cursor: default;
+    }
+    
+    .install-app-btn.installed:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .install-icon {
+        transition: transform 0.3s ease;
+    }
+    
+    .install-app-btn:hover .install-icon {
+        transform: scale(1.1);
+    }
+    
+    .install-app-btn.installed .install-icon {
+        transform: rotate(180deg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-5 mb-lg-0">
+                <h1 class="hero-title mb-4">Modern Report Card Management for Modern Schools</h1>
+                <p class="hero-subtitle">
+                    A comprehensive, offline-first solution for managing student grades, attendance, and report cards across multiple institutions with cutting-edge technology.
+                </p>
+                <div class="d-flex flex-wrap gap-3">
+                    <a href="{% url 'register' %}" class="btn btn-light btn-lg rounded-pill px-4 shadow-sm">
+                        <i class="bi bi-rocket-takeoff me-2"></i>Get Started Free
+                    </a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg rounded-pill px-4">
+                        <i class="bi bi-play-circle me-2"></i>Watch Demo
+                    </a>
+                    <button class="btn btn-secondary btn-lg rounded-pill px-4 install-app-btn" style="display: none;" onclick="installApp()">
+                        <i class="bi bi-download install-icon me-2"></i>Install App
+                    </button>
+                    <button class="btn mobile-download-btn btn-lg rounded-pill px-4" onclick="window.location.href='/download/apk/?type=android'">
+                        <i class="bi bi-phone install-icon me-2"></i>Get Mobile App
+                    </button>
+                </div>
+                <div class="mt-4 text-white-50 small">
+                    <i class="bi bi-check-circle me-1"></i> No credit card required
+                    <i class="bi bi-check-circle ms-3 me-1"></i> 14-day free trial
+                    <i class="bi bi-check-circle ms-3 me-1"></i> Setup in 5 minutes
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="demo-card">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-bar-chart-fill text-primary fs-1 mb-3 d-block"></i>
+                        <h4>Live Demo Dashboard</h4>
+                        <p class="text-muted">Experience the power of modern grade management</p>
+                    </div>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="stat-card">
+                                <div class="stat-icon primary">
+                                    <i class="bi bi-building"></i>
+                                </div>
+                                <h3 class="mb-1">1K+</h3>
+                                <small class="text-muted">Schools</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-card">
+                                <div class="stat-icon success">
+                                    <i class="bi bi-people"></i>
+                                </div>
+                                <h3 class="mb-1">50K+</h3>
+                                <small class="text-muted">Students</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-card">
+                                <div class="stat-icon warning">
+                                    <i class="bi bi-mortarboard"></i>
+                                </div>
+                                <h3 class="mb-1">10K+</h3>
+                                <small class="text-muted">Teachers</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <a href="{% url 'login' %}" class="btn btn-gradient w-100 rounded-pill">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Try Interactive Demo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="scroll-indicator">
+        <i class="bi bi-chevron-down fs-4 d-block"></i>
+        <small>Scroll to explore</small>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section id="features" class="py-6 bg-light">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <span class="badge bg-primary badge-modern mb-3">WHY CHOOSE US</span>
+                <h2 class="display-5 fw-bold mb-3">Transform Your School Management</h2>
+                <p class="lead text-muted mx-auto" style="max-width: 700px;">
+                    Built with modern technology to address the unique challenges of educational institutions
+                </p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <!-- Feature 1 -->
+            <div class="col-lg-4 col-md-6">
+                <div class="h-100 p-4 bg-white rounded-3 shadow-sm border">
+                    <div class="feature-icon">
+                        <i class="bi bi-wifi-off"></i>
+                    </div>
+                    <h4 class="text-center mb-3">Offline-First Design</h4>
+                    <p class="text-muted text-center mb-0">
+                        Work anywhere, anytime. Input grades, manage attendance, and generate reports without internet access.
+                        Automatic sync when connection is restored.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Feature 2 -->
+            <div class="col-lg-4 col-md-6">
+                <div class="h-100 p-4 bg-white rounded-3 shadow-sm border">
+                    <div class="feature-icon">
+                        <i class="bi bi-phone"></i>
+                    </div>
+                    <h4 class="text-center mb-3">Cross-Platform Mobile App</h4>
+                    <p class="text-muted text-center mb-0">
+                        Native iOS and Android apps for teachers and students. Access everything from your smartphone or tablet.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Feature 3 -->
+            <div class="col-lg-4 col-md-6">
+                <div class="h-100 p-4 bg-white rounded-3 shadow-sm border">
+                    <div class="feature-icon">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <h4 class="text-center mb-3">Multi-Tenant Architecture</h4>
+                    <p class="text-muted text-center mb-0">
+                        Complete data isolation between schools. Each institution gets its own secure, customizable environment.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Feature 4 -->
+            <div class="col-lg-4 col-md-6">
+                <div class="h-100 p-4 bg-white rounded-3 shadow-sm border">
+                    <div class="feature-icon">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                    </div>
+                    <h4 class="text-center mb-3">PDF Report Generation</h4>
+                    <p class="text-muted text-center mb-0">
+                        Generate professional, customizable report cards in PDF format with school branding and custom templates.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Feature 5 -->
+            <div class="col-lg-4 col-md-6">
+                <div class="h-100 p-4 bg-white rounded-3 shadow-sm border">
+                    <div class="feature-icon">
+                        <i class="bi bi-shield-lock"></i>
+                    </div>
+                    <h4 class="text-center mb-3">Enterprise Security</h4>
+                    <p class="text-muted text-center mb-0">
+                        Bank-level security with encrypted data, role-based access control, and regular security audits.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Feature 6 -->
+            <div class="col-lg-4 col-md-6">
+                <div class="h-100 p-4 bg-white rounded-3 shadow-sm border">
+                    <div class="feature-icon">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <h4 class="text-center mb-3">Advanced Analytics</h4>
+                    <p class="text-muted text-center mb-0">
+                        Comprehensive dashboards and reports to track student performance and institutional metrics.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section class="py-6">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <span class="badge bg-success badge-modern mb-3">GET STARTED</span>
+                <h2 class="display-5 fw-bold mb-3">Simple 3-Step Setup</h2>
+                <p class="lead text-muted mx-auto" style="max-width: 700px;">
+                    Get your school up and running in minutes, not days
+                </p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="text-center h-100 p-4">
+                    <div class="step-number">1</div>
+                    <h4 class="mb-3">Create Your School</h4>
+                    <p class="text-muted mb-0">
+                        Sign up and create your school profile. Customize grading scales, subjects, and academic terms to match your institution's policies.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="text-center h-100 p-4">
+                    <div class="step-number">2</div>
+                    <h4 class="mb-3">Invite Teachers & Students</h4>
+                    <p class="text-muted mb-0">
+                        Add your teaching staff and students. Teachers get mobile app access for on-the-go grade management.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="text-center h-100 p-4">
+                    <div class="step-number">3</div>
+                    <h4 class="mb-3">Start Managing</h4>
+                    <p class="text-muted mb-0">
+                        Begin inputting grades, tracking attendance, and generating report cards. Everything syncs automatically.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials -->
+<section class="py-6 bg-light">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <span class="badge bg-warning text-dark badge-modern mb-3">TESTIMONIALS</span>
+                <h2 class="display-5 fw-bold mb-3">Trusted by Educational Institutions</h2>
+                <p class="lead text-muted mx-auto" style="max-width: 700px;">
+                    See what school administrators and teachers are saying about ReportCardApp
+                </p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="testimonial-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-0">Dr. Sarah Johnson</h6>
+                            <small class="text-muted">Principal, Green Valley High</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">
+                        "ReportCardApp has revolutionized how we manage student data. The offline capability is perfect for our teachers who work in remote areas."
+                    </p>
+                    <div class="text-warning">
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="testimonial-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-0">Michael Chen</h6>
+                            <small class="text-muted">IT Director, City Schools District</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">
+                        "The multi-tenant architecture allows us to manage 15 schools in our district from one platform. Security and data isolation are excellent."
+                    </p>
+                    <div class="text-warning">
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-half"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="testimonial-card h-100">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-0">Emily Rodriguez</h6>
+                            <small class="text-muted">Teacher, Riverside Academy</small>
+                        </div>
+                    </div>
+                    <p class="text-muted">
+                        "I love the mobile app! I can input grades during my commute and everything syncs when I get to school. The interface is so intuitive."
+                    </p>
+                    <div class="text-warning">
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing Section -->
+<section class="py-6">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <span class="badge bg-info badge-modern mb-3">PRICING</span>
+                <h2 class="display-5 fw-bold mb-3">Simple, Transparent Pricing</h2>
+                <p class="lead text-muted mx-auto" style="max-width: 700px;">
+                    Choose the plan that fits your institution's needs. All plans include core features.
+                </p>
+            </div>
+        </div>
+        
+        <div class="row justify-content-center g-4">
+            <div class="col-lg-4">
+                <div class="pricing-card h-100">
+                    <h4 class="text-center mb-3">Starter</h4>
+                    <div class="text-center mb-4">
+                        <span class="display-4 fw-bold">$49</span>
+                        <span class="text-muted">/month</span>
+                    </div>
+                    <ul class="list-unstyled mb-4">
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Up to 500 students</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Basic grade management</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>PDF report generation</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Email support</li>
+                        <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Advanced analytics</li>
+                        <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Custom integrations</li>
+                    </ul>
+                    <a href="{% url 'register' %}" class="btn btn-outline-primary w-100 rounded-pill">Start Free Trial</a>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="pricing-card popular h-100">
+                    <h4 class="text-center mb-3">Professional</h4>
+                    <div class="text-center mb-4">
+                        <span class="display-4 fw-bold">$99</span>
+                        <span class="text-muted">/month</span>
+                    </div>
+                    <ul class="list-unstyled mb-4">
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Up to 2000 students</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Advanced grade management</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Custom report templates</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Priority support</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Advanced analytics</li>
+                        <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Custom integrations</li>
+                    </ul>
+                    <a href="{% url 'register' %}" class="btn btn-gradient w-100 rounded-pill">Start Free Trial</a>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="pricing-card h-100">
+                    <h4 class="text-center mb-3">Enterprise</h4>
+                    <div class="text-center mb-4">
+                        <span class="display-4 fw-bold">Custom</span>
+                        <span class="text-muted">/month</span>
+                    </div>
+                    <ul class="list-unstyled mb-4">
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Unlimited students</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Full feature access</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>White-label solutions</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>24/7 dedicated support</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Custom integrations</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>API access</li>
+                    </ul>
+                    <a href="#contact" class="btn btn-outline-primary w-100 rounded-pill">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-5">
+            <p class="text-muted">
+                <i class="bi bi-shield-check text-success me-1"></i> All plans include 14-day free trial. No credit card required.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section py-6">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center text-white">
+                <h2 class="display-5 fw-bold mb-4">Ready to Transform Your School Management?</h2>
+                <p class="lead mb-5 opacity-90">
+                    Join thousands of educational institutions already using ReportCardApp to streamline their operations and improve student outcomes.
+                </p>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="{% url 'register' %}" class="btn btn-light btn-lg rounded-pill px-5 shadow-sm">
+                        <i class="bi bi-rocket-takeoff me-2"></i>Start Free Trial
+                    </a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg rounded-pill px-5">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                    </a>
+                    <button class="btn btn-secondary btn-lg rounded-pill px-5 install-app-btn" style="display: none;" onclick="installApp()">
+                        <i class="bi bi-download install-icon me-2"></i>Install App
+                    </button>
+                    <button class="btn mobile-download-btn btn-lg rounded-pill px-5" onclick="window.location.href='/download/apk/?type=android'">
+                        <i class="bi bi-phone install-icon me-2"></i>Get Mobile App
+                    </button>
+                </div>
+                <p class="mt-4 opacity-75">
+                    <i class="bi bi-clock me-1"></i> Setup takes less than 5 minutes
+                    <i class="bi bi-headset ms-3 me-1"></i> 24/7 support available
+                    <i class="bi bi-shield-check ms-3 me-1"></i> SOC 2 compliant
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer Links -->
+<div class="py-5 bg-dark text-white">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-4 mb-4 mb-lg-0">
+                <h5 class="mb-3">ReportCardApp</h5>
+                <p class="text-white-50 mb-4">
+                    Modern, offline-first report card management for educational institutions of all sizes.
+                </p>
+                <div class="d-flex gap-3">
+                    <a href="#" class="text-white-50 hover-white"><i class="bi bi-twitter fs-5"></i></a>
+                    <a href="#" class="text-white-50 hover-white"><i class="bi bi-facebook fs-5"></i></a>
+                    <a href="#" class="text-white-50 hover-white"><i class="bi bi-linkedin fs-5"></i></a>
+                    <a href="#" class="text-white-50 hover-white"><i class="bi bi-github fs-5"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
+                <h6 class="mb-3">Product</h6>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><a href="#features" class="text-white-50 text-decoration-none hover-white">Features</a></li>
+                    <li class="mb-2"><a href="#pricing" class="text-white-50 text-decoration-none hover-white">Pricing</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">Mobile App</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">API</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
+                <h6 class="mb-3">Resources</h6>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">Documentation</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">Help Center</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">Blog</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">Community</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-2 col-md-4">
+                <h6 class="mb-3">Company</h6>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">About</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">Careers</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">Contact</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none hover-white">Legal</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-2">
+                <h6 class="mb-3">Contact</h6>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="bi bi-envelope me-2"></i><span class="text-white-50">support@reportcardapp.com</span></li>
+                    <li class="mb-2"><i class="bi bi-telephone me-2"></i><span class="text-white-50">+1 (555) 123-4567</span></li>
+                    <li><i class="bi bi-geo-alt me-2"></i><span class="text-white-50">San Francisco, CA</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Animate elements on scroll
+    function animateOnScroll() {
+        const elements = document.querySelectorAll('.feature-icon, .step-number, .testimonial-card');
+        
+        elements.forEach(element => {
+            const elementTop = element.getBoundingClientRect().top;
+            const elementVisible = 150;
+            
+            if (elementTop < window.innerHeight - elementVisible) {
+                element.classList.add('animate__animated', 'animate__fadeInUp');
+            }
+        });
+    }
+    
+    // Initialize scroll animation
+    window.addEventListener('scroll', animateOnScroll);
+    
+    // Trigger animation on load
+    document.addEventListener('DOMContentLoaded', () => {
+        animateOnScroll();
+        
+        // Add animation classes
+        const heroTitle = document.querySelector('.hero-title');
+        const heroSubtitle = document.querySelector('.hero-subtitle');
+        
+        if (heroTitle) {
+            heroTitle.classList.add('animate__animated', 'animate__fadeInDown');
+        }
+        
+        if (heroSubtitle) {
+            heroSubtitle.classList.add('animate__animated', 'animate__fadeInUp', 'animate__delay-1s');
+        }
+    });
+    
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            
+            const targetId = this.getAttribute('href');
+            if (targetId === '#') return;
+            
+            const targetElement = document.querySelector(targetId);
+            if (targetElement) {
+                window.scrollTo({
+                    top: targetElement.offsetTop - 80,
+                    behavior: 'smooth'
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

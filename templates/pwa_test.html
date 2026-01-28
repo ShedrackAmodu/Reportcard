@@ -1,0 +1,424 @@
+{% extends 'base.html' %}
+{% block title %}PWA Test - ReportCardApp{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-5">
+                <h1 class="display-4 fw-bold mb-3">PWA Install Button Test</h1>
+                <p class="lead text-muted">Test the PWA installation functionality</p>
+            </div>
+
+            <!-- PWA Status Card -->
+            <div class="card shadow-lg mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">PWA Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>Service Worker:</strong>
+                                <span id="sw-status" class="badge bg-secondary ms-2">Checking...</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Manifest:</strong>
+                                <span id="manifest-status" class="badge bg-secondary ms-2">Checking...</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Installable:</strong>
+                                <span id="installable-status" class="badge bg-secondary ms-2">Checking...</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>Display Mode:</strong>
+                                <span id="display-mode" class="badge bg-secondary ms-2">Checking...</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Network:</strong>
+                                <span id="network-status" class="badge bg-secondary ms-2">Checking...</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Install Button:</strong>
+                                <span id="button-status" class="badge bg-secondary ms-2">Checking...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Actions -->
+            <div class="card shadow-lg mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Test Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button class="btn btn-primary w-100 mb-3" onclick="checkPWAStatus()">
+                                <i class="bi bi-shield-check me-2"></i>Check PWA Status
+                            </button>
+                            <button class="btn btn-info w-100 mb-3" onclick="showInstallPrompt()">
+                                <i class="bi bi-download me-2"></i>Trigger Install Prompt
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-warning w-100 mb-3" onclick="checkManifest()">
+                                <i class="bi bi-file-earmark-text me-2"></i>Check Manifest
+                            </button>
+                            <button class="btn btn-secondary w-100 mb-3" onclick="checkServiceWorker()">
+                                <i class="bi bi-gear me-2"></i>Check Service Worker
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Install Button Test -->
+            <div class="card shadow-lg mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">Install Button Test</h5>
+                </div>
+                <div class="card-body text-center">
+                    <p class="text-muted mb-4">The install button below should appear when the PWA is installable:</p>
+                    
+                    <div class="d-flex justify-content-center gap-3">
+                        <button class="btn btn-gradient btn-lg rounded-pill px-5 install-app-btn" style="display: none;" onclick="installApp()">
+                            <i class="bi bi-download install-icon me-2"></i>Install App
+                        </button>
+                        <button class="btn btn-outline-primary btn-lg rounded-pill px-5" onclick="manualInstallTest()">
+                            <i class="bi bi-controller me-2"></i>Manual Test
+                        </button>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <small class="text-muted">Note: Install button visibility depends on browser support and PWA criteria</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Debug Information -->
+            <div class="card shadow-lg">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Debug Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Browser Support:</h6>
+                            <ul class="list-unstyled" id="browser-support">
+                                <li><i class="bi bi-question-circle text-warning me-2"></i>Service Worker Support</li>
+                                <li><i class="bi bi-question-circle text-warning me-2"></i>Manifest Support</li>
+                                <li><i class="bi bi-question-circle text-warning me-2"></i>Install Prompt Support</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>PWA Criteria:</h6>
+                            <ul class="list-unstyled" id="pwa-criteria">
+                                <li><i class="bi bi-question-circle text-warning me-2"></i>HTTPS (or localhost)</li>
+                                <li><i class="bi bi-question-circle text-warning me-2"></i>Valid Manifest</li>
+                                <li><i class="bi bi-question-circle text-warning me-2"></i>Service Worker Registered</li>
+                                <li><i class="bi bi-question-circle text-warning me-2"></i>Installable Event Fired</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Console Logs:</h6>
+                        <div id="console-output" class="bg-light p-3 rounded" style="min-height: 100px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // PWA Test Functions
+    let deferredPrompt;
+    let isInstallable = false;
+    let isInstalled = false;
+
+    // Console logging helper
+    function log(message, type = 'info') {
+        const output = document.getElementById('console-output');
+        const timestamp = new Date().toLocaleTimeString();
+        const color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#007bff';
+        
+        const logEntry = document.createElement('div');
+        logEntry.innerHTML = `<span style="color: ${color}; font-weight: bold;">[${timestamp}]</span> ${message}`;
+        output.appendChild(logEntry);
+        output.scrollTop = output.scrollHeight;
+    }
+
+    // Check PWA Status
+    function checkPWAStatus() {
+        log('Checking PWA status...', 'info');
+        
+        // Check Service Worker
+        if ('serviceWorker' in navigator) {
+            log('✓ Service Worker supported', 'success');
+            document.getElementById('sw-status').textContent = 'Supported';
+            document.getElementById('sw-status').className = 'badge bg-success ms-2';
+        } else {
+            log('✗ Service Worker not supported', 'error');
+            document.getElementById('sw-status').textContent = 'Not Supported';
+            document.getElementById('sw-status').className = 'badge bg-danger ms-2';
+        }
+
+        // Check Manifest
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if (manifestLink) {
+            log('✓ Manifest found', 'success');
+            document.getElementById('manifest-status').textContent = 'Found';
+            document.getElementById('manifest-status').className = 'badge bg-success ms-2';
+        } else {
+            log('✗ Manifest not found', 'error');
+            document.getElementById('manifest-status').textContent = 'Not Found';
+            document.getElementById('manifest-status').className = 'badge bg-danger ms-2';
+        }
+
+        // Check Display Mode
+        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+            log('✓ Running in standalone mode', 'success');
+            isInstalled = true;
+            document.getElementById('display-mode').textContent = 'Standalone';
+            document.getElementById('display-mode').className = 'badge bg-success ms-2';
+        } else {
+            log('ℹ Running in browser mode', 'info');
+            document.getElementById('display-mode').textContent = 'Browser';
+            document.getElementById('display-mode').className = 'badge bg-info ms-2';
+        }
+
+        // Check Network
+        const isOnline = navigator.onLine;
+        if (isOnline) {
+            log('✓ Online', 'success');
+            document.getElementById('network-status').textContent = 'Online';
+            document.getElementById('network-status').className = 'badge bg-success ms-2';
+        } else {
+            log('✗ Offline', 'error');
+            document.getElementById('network-status').textContent = 'Offline';
+            document.getElementById('network-status').className = 'badge bg-danger ms-2';
+        }
+
+        // Check Installable Status
+        if (isInstallable) {
+            log('✓ PWA is installable', 'success');
+            document.getElementById('installable-status').textContent = 'Installable';
+            document.getElementById('installable-status').className = 'badge bg-success ms-2';
+            document.getElementById('button-status').textContent = 'Visible';
+            document.getElementById('button-status').className = 'badge bg-success ms-2';
+        } else if (isInstalled) {
+            log('✓ PWA is already installed', 'success');
+            document.getElementById('installable-status').textContent = 'Installed';
+            document.getElementById('installable-status').className = 'badge bg-primary ms-2';
+            document.getElementById('button-status').textContent = 'Hidden';
+            document.getElementById('button-status').className = 'badge bg-secondary ms-2';
+        } else {
+            log('ℹ PWA not yet installable', 'info');
+            document.getElementById('installable-status').textContent = 'Not Installable';
+            document.getElementById('installable-status').className = 'badge bg-warning ms-2';
+            document.getElementById('button-status').textContent = 'Hidden';
+            document.getElementById('button-status').className = 'badge bg-secondary ms-2';
+        }
+
+        // Update browser support list
+        updateBrowserSupport();
+        
+        // Update PWA criteria
+        updatePWACriteria();
+    }
+
+    // Check Manifest Details
+    function checkManifest() {
+        log('Checking manifest details...', 'info');
+        
+        fetch('/manifest.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(manifest => {
+                log('✓ Manifest loaded successfully', 'success');
+                log(`App Name: ${manifest.name}`, 'info');
+                log(`Short Name: ${manifest.short_name}`, 'info');
+                log(`Start URL: ${manifest.start_url}`, 'info');
+                log(`Display: ${manifest.display}`, 'info');
+                log(`Theme Color: ${manifest.theme_color}`, 'info');
+                
+                // Check icons
+                if (manifest.icons && manifest.icons.length > 0) {
+                    log(`✓ Found ${manifest.icons.length} icons`, 'success');
+                    manifest.icons.forEach(icon => {
+                        log(`  - ${icon.sizes} (${icon.type})`, 'info');
+                    });
+                } else {
+                    log('⚠ No icons found in manifest', 'warning');
+                }
+            })
+            .catch(error => {
+                log(`✗ Error loading manifest: ${error.message}`, 'error');
+            });
+    }
+
+    // Check Service Worker Details
+    function checkServiceWorker() {
+        log('Checking service worker details...', 'info');
+        
+        if ('serviceWorker' in navigator) {
+            if (navigator.serviceWorker.controller) {
+                log('✓ Service Worker is controlling this page', 'success');
+                log(`SW Scope: ${navigator.serviceWorker.controller.scope}`, 'info');
+                log(`SW Script URL: ${navigator.serviceWorker.controller.scriptURL}`, 'info');
+            } else {
+                log('ℹ No active Service Worker', 'info');
+            }
+            
+            // Check for registered service workers
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                if (registrations.length > 0) {
+                    log(`✓ Found ${registrations.length} registered Service Worker(s)`, 'success');
+                    registrations.forEach(reg => {
+                        log(`  - Scope: ${reg.scope}`, 'info');
+                        log(`  - Active: ${reg.active ? 'Yes' : 'No'}`, 'info');
+                        log(`  - Waiting: ${reg.waiting ? 'Yes' : 'No'}`, 'info');
+                        log(`  - Installing: ${reg.installing ? 'Yes' : 'No'}`, 'info');
+                    });
+                } else {
+                    log('ℹ No registered Service Workers', 'info');
+                }
+            });
+        } else {
+            log('✗ Service Worker not supported', 'error');
+        }
+    }
+
+    // Show Install Prompt
+    function showInstallPrompt() {
+        log('Attempting to show install prompt...', 'info');
+        
+        if (deferredPrompt) {
+            log('✓ Install prompt available', 'success');
+            deferredPrompt.prompt();
+            
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    log('✓ User accepted the install prompt', 'success');
+                    isInstalled = true;
+                    checkPWAStatus();
+                } else {
+                    log('ℹ User dismissed the install prompt', 'info');
+                }
+                deferredPrompt = null;
+            });
+        } else {
+            log('ℹ Install prompt not available. This may be because:', 'warning');
+            log('  - PWA criteria not met', 'info');
+            log('  - User already installed the app', 'info');
+            log('  - User previously dismissed the install prompt', 'info');
+            log('  - Browser does not support PWA installation', 'info');
+        }
+    }
+
+    // Manual Test
+    function manualInstallTest() {
+        log('Manual install test triggered', 'info');
+        log('This simulates the install button click', 'info');
+        
+        // Simulate button click
+        const installButton = document.querySelector('.install-app-btn');
+        if (installButton) {
+            log('✓ Install button found', 'success');
+            installButton.click();
+        } else {
+            log('ℹ Install button not visible', 'info');
+            log('This is expected if PWA is not installable', 'info');
+        }
+    }
+
+    // Update Browser Support List
+    function updateBrowserSupport() {
+        const supportList = document.getElementById('browser-support');
+        supportList.innerHTML = '';
+        
+        // Service Worker
+        const swItem = document.createElement('li');
+        swItem.innerHTML = `<i class="bi ${'serviceWorker' in navigator ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} me-2"></i>Service Worker Support`;
+        supportList.appendChild(swItem);
+        
+        // Manifest
+        const manifestItem = document.createElement('li');
+        manifestItem.innerHTML = `<i class="bi ${document.querySelector('link[rel="manifest"]') ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} me-2"></i>Manifest Support`;
+        supportList.appendChild(manifestItem);
+        
+        // Install Prompt
+        const installItem = document.createElement('li');
+        installItem.innerHTML = `<i class="bi ${deferredPrompt ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} me-2"></i>Install Prompt Support`;
+        supportList.appendChild(installItem);
+    }
+
+    // Update PWA Criteria List
+    function updatePWACriteria() {
+        const criteriaList = document.getElementById('pwa-criteria');
+        criteriaList.innerHTML = '';
+        
+        // HTTPS
+        const httpsItem = document.createElement('li');
+        const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+        httpsItem.innerHTML = `<i class="bi ${isHTTPS ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} me-2"></i>HTTPS (or localhost)`;
+        criteriaList.appendChild(httpsItem);
+        
+        // Manifest
+        const manifestItem = document.createElement('li');
+        const hasManifest = !!document.querySelector('link[rel="manifest"]');
+        manifestItem.innerHTML = `<i class="bi ${hasManifest ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} me-2"></i>Valid Manifest`;
+        criteriaList.appendChild(manifestItem);
+        
+        // Service Worker
+        const swItem = document.createElement('li');
+        const hasSW = 'serviceWorker' in navigator && navigator.serviceWorker.controller;
+        swItem.innerHTML = `<i class="bi ${hasSW ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} me-2"></i>Service Worker Registered`;
+        criteriaList.appendChild(swItem);
+        
+        // Installable Event
+        const installableItem = document.createElement('li');
+        installableItem.innerHTML = `<i class="bi ${isInstallable ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} me-2"></i>Installable Event Fired`;
+        criteriaList.appendChild(installableItem);
+    }
+
+    // Event Listeners for PWA Events
+    window.addEventListener('beforeinstallprompt', (e) => {
+        log('✓ beforeinstallprompt event fired', 'success');
+        deferredPrompt = e;
+        isInstallable = true;
+        checkPWAStatus();
+    });
+
+    window.addEventListener('appinstalled', (e) => {
+        log('✓ appinstalled event fired', 'success');
+        isInstalled = true;
+        deferredPrompt = null;
+        isInstallable = false;
+        checkPWAStatus();
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        log('PWA Test page loaded', 'info');
+        checkPWAStatus();
+        
+        // Check if already installed
+        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+            isInstalled = true;
+            checkPWAStatus();
+        }
+    });
+</script>
+{% endblock %}

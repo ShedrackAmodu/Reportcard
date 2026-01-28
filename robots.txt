@@ -1,0 +1,29 @@
+# robots.txt for ReportCardApp
+# Allow all search engines to crawl the site
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: /sitemap.xml
+
+# PWA manifest
+Link: </manifest.json>; rel="manifest"
+
+# Service Worker
+Link: </sw.js>; rel="serviceworker"
+
+# Important pages to prioritize
+Allow: /login
+Allow: /register
+Allow: /features
+Allow: /pricing
+Allow: /demo
+
+# Disallow crawling of admin and API endpoints
+Disallow: /admin/
+Disallow: /api/
+Disallow: /static/
+Disallow: /media/
+
+# Crawl delay to be respectful
+Crawl-delay: 1

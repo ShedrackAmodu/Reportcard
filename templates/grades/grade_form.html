@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'grade_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Grades
+                </a>
+            </div>
+
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <form method="post" data-offline="true">
+                                {% csrf_token %}
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.student.id_for_label }}" class="form-label">Student *</label>
+                                        {{ form.student }}
+                                        {% if form.student.errors %}
+                                            <div class="text-danger">{{ form.student.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.subject.id_for_label }}" class="form-label">Subject *</label>
+                                        {{ form.subject }}
+                                        {% if form.subject.errors %}
+                                            <div class="text-danger">{{ form.subject.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.grading_period.id_for_label }}" class="form-label">Grading Period *</label>
+                                        {{ form.grading_period }}
+                                        {% if form.grading_period.errors %}
+                                            <div class="text-danger">{{ form.grading_period.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.score.id_for_label }}" class="form-label">Score (0-100)</label>
+                                        {{ form.score }}
+                                        {% if form.score.errors %}
+                                            <div class="text-danger">{{ form.score.errors }}</div>
+                                        {% endif %}
+                                        <div class="form-text">Numeric score out of 100</div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.letter_grade.id_for_label }}" class="form-label">Letter Grade</label>
+                                        {{ form.letter_grade }}
+                                        {% if form.letter_grade.errors %}
+                                            <div class="text-danger">{{ form.letter_grade.errors }}</div>
+                                        {% endif %}
+                                        <div class="form-text">Will be auto-calculated if score is provided</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.school.id_for_label }}" class="form-label">School *</label>
+                                        {{ form.school }}
+                                        {% if form.school.errors %}
+                                            <div class="text-danger">{{ form.school.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.comments.id_for_label }}" class="form-label">Comments</label>
+                                    {{ form.comments }}
+                                    {% if form.comments.errors %}
+                                        <div class="text-danger">{{ form.comments.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        {% if grade %}Update Grade{% else %}Create Grade{% endif %}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-calculate letter grade based on score and grading scale
+document.getElementById('{{ form.score.id_for_label }}').addEventListener('input', function() {
+    const score = parseFloat(this.value);
+    const letterGradeField = document.getElementById('{{ form.letter_grade.id_for_label }}');
+
+    if (!isNaN(score) && score >= 0 && score <= 100) {
+        // Get grading scale data from the school (assuming first grading scale)
+        {% if form.school.value %}
+            // This would need to be enhanced to fetch grading scale data dynamically
+            // For now, using basic calculation
+            let letterGrade = 'F';
+            if (score >= 90) letterGrade = 'A';
+            else if (score >= 80) letterGrade = 'B';
+            else if (score >= 70) letterGrade = 'C';
+            else if (score >= 60) letterGrade = 'D';
+
+            letterGradeField.value = letterGrade;
+        {% endif %}
+    }
+});
+
+// Offline form handling
+document.querySelector('form[data-offline="true"]').addEventListener('submit', function(e) {
+    if (!navigator.onLine) {
+        // Form will be handled by the PWA's offline submission logic
+        console.log('Grade form submitted offline');
+    }
+});
+</script>
+{% endblock %}

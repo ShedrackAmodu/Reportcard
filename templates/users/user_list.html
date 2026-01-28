@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'user_create' %}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Add User
+                </a>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="role" class="form-label">Filter by Role</label>
+                            <select name="role" id="role" class="form-select">
+                                <option value="">All Roles</option>
+                                <option value="super_admin" {% if role_filter == 'super_admin' %}selected{% endif %}>Super Admin</option>
+                                <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
+                                <option value="teacher" {% if role_filter == 'teacher' %}selected{% endif %}>Teacher</option>
+                                <option value="student" {% if role_filter == 'student' %}selected{% endif %}>Student</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    {% if users %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    {% if user.role == 'super_admin' %}
+                                    <th>School</th>
+                                    {% endif %}
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user_obj in users %}
+                                <tr>
+                                    <td>{{ user_obj.username }}</td>
+                                    <td>{{ user_obj.get_full_name|default:"—" }}</td>
+                                    <td>{{ user_obj.email|default:"—" }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if user_obj.role == 'super_admin' %}danger{% elif user_obj.role == 'admin' %}warning{% elif user_obj.role == 'teacher' %}info{% else %}secondary{% endif %}">
+                                            {{ user_obj.get_role_display }}
+                                        </span>
+                                    </td>
+                                    {% if user.role == 'super_admin' %}
+                                    <td>{{ user_obj.school.name|default:"—" }}</td>
+                                    {% endif %}
+                                    <td>{{ user_obj.date_joined|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'user_update' user_obj.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <a href="{% url 'user_delete' user_obj.pk %}" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <p class="text-muted">No users found.</p>
+                        <a href="{% url 'user_create' %}" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Create First User
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

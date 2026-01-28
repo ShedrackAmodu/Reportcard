@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} - ReportCardApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <!-- Page Header -->
+            <div class="page-header shadow-sm mb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h1 class="h2 fw-bold mb-2">
+                            <i class="bi bi-building me-2"></i>{{ title }}
+                        </h1>
+                        <p class="text-muted mb-0">Create a new school in the system</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'school_list' %}" class="btn btn-outline-secondary rounded-pill">
+                            <i class="bi bi-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Card -->
+            <div class="card glass-card shadow-lg border-0">
+                <div class="card-header bg-transparent border-0">
+                    <h4 class="card-title mb-0">
+                        <i class="bi bi-plus-circle me-2 text-primary"></i>
+                        School Information
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Success/Error Messages -->
+                        {% if messages %}
+                        <div class="messages-container mb-4">
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-modern alert-dismissible fade show" role="alert">
+                                <div class="d-flex align-items-center">
+                                    {% if message.tags == 'success' %}
+                                    <i class="bi bi-check-circle-fill me-2 fs-5 text-success"></i>
+                                    {% elif message.tags == 'error' or message.tags == 'danger' %}
+                                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
+                                    {% elif message.tags == 'warning' %}
+                                    <i class="bi bi-exclamation-circle-fill me-2 fs-5 text-warning"></i>
+                                    {% elif message.tags == 'info' %}
+                                    <i class="bi bi-info-circle-fill me-2 fs-5 text-info"></i>
+                                    {% endif %}
+                                    <div>{{ message }}</div>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Form Fields -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-4">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold">
+                                        <i class="bi bi-building me-2"></i>{{ form.name.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.name.errors %}
+                                                <div><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.name.help_text %}
+                                        <div class="form-text text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>{{ form.name.help_text }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label for="{{ form.theme.id_for_label }}" class="form-label fw-semibold">
+                                        <i class="bi bi-palette me-2"></i>{{ form.theme.label }}
+                                    </label>
+                                    {{ form.theme }}
+                                    {% if form.theme.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.theme.errors %}
+                                                <div><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.theme.help_text %}
+                                        <div class="form-text text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>{{ form.theme.help_text }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label for="{{ form.report_template.id_for_label }}" class="form-label fw-semibold">
+                                        <i class="bi bi-file-text me-2"></i>{{ form.report_template.label }}
+                                    </label>
+                                    {{ form.report_template }}
+                                    {% if form.report_template.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.report_template.errors %}
+                                                <div><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.report_template.help_text %}
+                                        <div class="form-text text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>{{ form.report_template.help_text }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn btn-gradient rounded-pill px-4">
+                                <i class="bi bi-check-circle me-2"></i>
+                                {% if action == 'Create' %}Create School{% else %}Update School{% endif %}
+                            </button>
+                            <a href="{% url 'school_list' %}" class="btn btn-outline-secondary rounded-pill px-4">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tips Section -->
+            <div class="card glass-card shadow-lg border-0 mt-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-lightbulb me-2 text-warning"></i>Tips
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            School names must be unique across the system
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            School names must be at least 2 characters long
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Only super admins can create schools
+                        </li>
+                        <li>
+                            <i class="bi bi-info-circle text-info me-2"></i>
+                            After creation, you can add users, classes, and subjects to this school
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

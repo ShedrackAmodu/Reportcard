@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ReportCardApp - Multi-Tenant Report Card System{% endblock %}</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#073b74ff">
+    <meta name="description" content="Multi-Tenant Report Card System with offline capabilities">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="ReportCardApp">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="{% static 'images/icon-192.png' %}">
+    <link rel="icon" href="{% static 'images/logo.png' %}" type="image/png">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <!-- Modern Gradient Background -->
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 5px 20px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --border-radius-sm: 8px;
+            --border-radius-md: 12px;
+            --border-radius-lg: 16px;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-lg);
+            transition: var(--transition);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg), 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .gradient-bg {
+            background: var(--primary-gradient);
+        }
+
+        .btn-gradient {
+            background: var(--primary-gradient);
+            border: none;
+            color: white;
+            transition: var(--transition);
+        }
+
+        .btn-gradient:hover {
+            background: var(--secondary-gradient);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-gradient {
+            background: var(--primary-gradient) !important;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar {
+            background: white;
+            box-shadow: var(--shadow-md);
+            border-radius: var(--border-radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: var(--border-radius-md);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .stat-icon.primary { background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%); color: #667eea; }
+        .stat-icon.success { background: linear-gradient(135deg, #4facfe20 0%, #00f2fe20 100%); color: #4facfe; }
+        .stat-icon.warning { background: linear-gradient(135deg, #f093fb20 0%, #f5576c20 100%); color: #f5576c; }
+        .stat-icon.info { background: linear-gradient(135deg, #a8edea20 0%, #fed6e320 100%); color: #00b894; }
+
+        .page-header {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid #667eea;
+        }
+
+        .breadcrumb-modern {
+            background: transparent;
+            padding: 0.75rem 1rem;
+            border-radius: var(--border-radius-md);
+            margin-bottom: 1.5rem;
+        }
+
+        .breadcrumb-modern .breadcrumb-item.active {
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .form-control-modern {
+            border: 1px solid #e0e0e0;
+            border-radius: var(--border-radius-md);
+            padding: 0.75rem 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control-modern:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+        }
+
+        .table-modern {
+            background: white;
+            border-radius: var(--border-radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table-modern thead th {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 1rem;
+        }
+
+        .table-modern tbody tr {
+            transition: var(--transition);
+        }
+
+        .table-modern tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.05);
+        }
+
+        .alert-modern {
+            border-radius: var(--border-radius-md);
+            border: none;
+            box-shadow: var(--shadow-sm);
+            padding: 1rem 1.25rem;
+        }
+
+        .badge-modern {
+            border-radius: 20px;
+            padding: 0.35em 0.75em;
+            font-weight: 500;
+        }
+
+        .dropdown-menu-modern {
+            border-radius: var(--border-radius-md);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: var(--shadow-lg);
+            padding: 0.5rem;
+        }
+
+        .dropdown-item-modern {
+            border-radius: var(--border-radius-sm);
+            padding: 0.5rem 1rem;
+            margin: 0.125rem 0;
+            transition: var(--transition);
+        }
+
+        .dropdown-item-modern:hover {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+
+        .floating-action-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: var(--transition);
+            z-index: 1000;
+        }
+
+        .floating-action-btn:hover {
+            transform: translateY(-3px) scale(1.1);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            color: #dee2e6;
+            margin-bottom: 1rem;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                color: #e0e0e0;
+            }
+
+            .glass-card {
+                background: rgba(30, 30, 46, 0.7);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .stat-card {
+                background: rgba(30, 30, 46, 0.8);
+                border-color: rgba(255, 255, 255, 0.05);
+            }
+
+            .page-header {
+                background: rgba(30, 30, 46, 0.8);
+            }
+
+            .table-modern {
+                background: rgba(30, 30, 46, 0.8);
+                color: #e0e0e0;
+            }
+
+            .form-control-modern {
+                background: rgba(30, 30, 46, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+                color: #e0e0e0;
+            }
+
+            .form-control-modern:focus {
+                background: rgba(30, 30, 46, 0.9);
+                border-color: #667eea;
+            }
+        }
+    </style>
+    
+    <!-- Default theme colors -->
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #4facfe;
+        }
+        .nav-gradient { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important; }
+        .btn-gradient { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); }
+        .stat-icon.primary { background: linear-gradient(135deg, var(--primary-color)20 0%, var(--secondary-color)20 100%); color: var(--primary-color); }
+    </style>
+    
+    <!-- Block for page-specific CSS -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Offline Notification Banner -->
+    <div id="offline-banner" class="alert alert-warning alert-modern alert-dismissible fade show d-none position-fixed top-0 start-0 end-0 m-3" role="alert" style="z-index: 9999;">
+        <div class="container-fluid">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-wifi-off me-2 fs-4"></i>
+                <div class="flex-grow-1">
+                    <strong>You are currently offline.</strong> Working in offline mode. Changes will sync when you're back online.
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Notification -->
+    <div id="sync-notification" class="alert alert-info alert-modern alert-dismissible fade show d-none position-fixed" style="top: 20px; right: 20px; z-index: 9999; width: 320px;">
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="flex-grow-1">
+                <strong>Syncing Data</strong>
+                <div class="progress mt-1" style="height: 4px;">
+                    <div id="sync-progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+                <small class="d-block mt-1 text-muted">Please wait...</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark nav-gradient shadow-lg py-3">
+        <div class="container-fluid">
+            <!-- Brand with school logo if available -->
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+                {% if user.is_authenticated and user.school.logo %}
+                <img src="{{ user.school.logo.url }}" alt="{{ user.school.name }}" height="36" class="me-2 rounded-circle shadow-sm" style="border: 2px solid rgba(255,255,255,0.3);">
+                {% else %}
+                <div class="bg-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px;">
+                    <i class="bi bi-mortarboard-fill text-primary"></i>
+                </div>
+                {% endif %}
+                <div>
+                    <span class="fw-bold">ReportCard</span>
+                    <small class="d-block" style="font-size: 0.75rem; opacity: 0.9;">App</small>
+                </div>
+            </a>
+            
+            <!-- Mobile Toggle -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Navigation Items -->
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav me-auto">
+                    {% if user.is_authenticated %}
+                        <!-- Dashboard -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active fw-bold{% endif %}" href="{% url 'dashboard' %}">
+                                <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                                {% if request.resolver_match.url_name == 'dashboard' %}<span class="badge bg-light text-primary ms-1 badge-modern">Active</span>{% endif %}
+                            </a>
+                        </li>
+                        
+                        <!-- School Management (Admins) -->
+                        {% if user.role == 'super_admin' or user.role == 'admin' %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'school_list,school_create,school_update,school_delete,user_list,user_create,user_update,user_delete,class_section_list,class_section_create,class_section_update,class_section_delete,subject_list,subject_create,subject_update,subject_delete,grading_scale_list,grading_scale_create,grading_scale_update,grading_scale_delete,enrollment_list,enrollment_create,enrollment_update,enrollment_delete,grading_period_list,grading_period_create,grading_period_update,grading_period_delete' %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-building me-1"></i>Management
+                                <i class="bi bi-chevron-down ms-1 small"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-modern">
+                                {% if user.role == 'super_admin' %}
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'school_list,school_create,school_update,school_delete' %}active{% endif %}" href="{% url 'school_list' %}">
+                                    <i class="bi bi-school me-2 text-primary"></i>Schools
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'user_list,user_create,user_update,user_delete' %}active{% endif %}" href="{% url 'user_list' %}">
+                                    <i class="bi bi-people me-2 text-success"></i>Users
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'class_section_list,class_section_create,class_section_update,class_section_delete' %}active{% endif %}" href="{% url 'class_section_list' %}">
+                                    <i class="bi bi-person-badge me-2 text-warning"></i>Classes
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'subject_list,subject_create,subject_update,subject_delete' %}active{% endif %}" href="{% url 'subject_list' %}">
+                                    <i class="bi bi-book me-2 text-info"></i>Subjects
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'grading_scale_list,grading_scale_create,grading_scale_update,grading_scale_delete' %}active{% endif %}" href="{% url 'grading_scale_list' %}">
+                                    <i class="bi bi-graph-up me-2 text-danger"></i>Grading Scales
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'enrollment_list,enrollment_create,enrollment_update,enrollment_delete' %}active{% endif %}" href="{% url 'enrollment_list' %}">
+                                    <i class="bi bi-clipboard-check me-2 text-primary"></i>Enrollments
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'grading_period_list,grading_period_create,grading_period_update,grading_period_delete' %}active{% endif %}" href="{% url 'grading_period_list' %}">
+                                    <i class="bi bi-calendar-range me-2 text-success"></i>Grading Periods
+                                </a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Teacher Features -->
+                        {% if user.role == 'teacher' or user.role == 'admin' %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'grade_list,grade_create,grade_update,grade_delete,grade_bulk_entry,attendance_list,attendance_create,attendance_update,attendance_delete' %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-mortarboard me-1"></i>Teaching
+                                <i class="bi bi-chevron-down ms-1 small"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-modern">
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'grade_list,grade_create,grade_update,grade_delete' %}active{% endif %}" href="{% url 'grade_list' %}">
+                                    <i class="bi bi-journal-check me-2 text-primary"></i>Grades
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name == 'grade_bulk_entry' %}active{% endif %}" href="{% url 'grade_bulk_entry' %}">
+                                    <i class="bi bi-table me-2 text-success"></i>Bulk Grade Entry
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name in 'attendance_list,attendance_create,attendance_update,attendance_delete' %}active{% endif %}" href="{% url 'attendance_list' %}">
+                                    <i class="bi bi-calendar-check me-2 text-warning"></i>Attendance
+                                </a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Student Features -->
+                        {% if user.role == 'student' %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-vcard me-1"></i>My Portal
+                                <i class="bi bi-chevron-down ms-1 small"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-modern">
+                                <li><a class="dropdown-item dropdown-item-modern" href="#">
+                                    <i class="bi bi-journal-text me-2 text-primary"></i>My Grades
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="#">
+                                    <i class="bi bi-calendar3 me-2 text-success"></i>My Attendance
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="#">
+                                    <i class="bi bi-card-checklist me-2 text-info"></i>My Report Cards
+                                </a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Reports & Documents -->
+                        {% if user.role != 'student' %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.resolver_match.url_name in 'report_card_list,export_grades_excel,export_attendance_excel,export_users_csv' %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>Reports
+                                <i class="bi bi-chevron-down ms-1 small"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-modern">
+                                <li><a class="dropdown-item dropdown-item-modern {% if request.resolver_match.url_name == 'report_card_list' %}active{% endif %}" href="{% url 'report_card_list' %}">
+                                    <i class="bi bi-card-text me-2 text-primary"></i>Report Cards
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Export Data</h6></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="{% url 'export_grades_excel' %}">
+                                    <i class="bi bi-file-earmark-spreadsheet me-2 text-info"></i>Grades (Excel)
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="{% url 'export_attendance_excel' %}">
+                                    <i class="bi bi-calendar-event me-2 text-warning"></i>Attendance (Excel)
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="{% url 'export_users_csv' %}">
+                                    <i class="bi bi-people me-2 text-danger"></i>Users (CSV)
+                                </a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
+
+                        <!-- Applications (Admins/Super Admins) -->
+                        {% if user.role in 'super_admin,admin' %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name in 'application_list,application_review' %}active fw-bold{% endif %}" href="{% url 'application_list' %}">
+                                <i class="bi bi-envelope me-1"></i>Applications
+                                {% if pending_applications_count %}
+                                <span class="badge bg-danger badge-modern ms-1">{{ pending_applications_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+
+                <!-- Global Search -->
+                {% if user.is_authenticated %}
+                <form class="d-flex me-3" role="search" id="global-search-form">
+                    <div class="input-group" style="width: 280px;">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="bi bi-search text-muted"></i>
+                        </span>
+                        <input class="form-control form-control-modern border-start-0 ps-0" type="search" placeholder="Search students, users, classes..." aria-label="Search" id="global-search-input">
+                        <button class="btn btn-gradient" type="submit" id="global-search-btn" style="border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;">
+                            Go
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+
+                <!-- Right Navigation -->
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                        <!-- School Switch (Super Admin Only) -->
+                        {% if user.role == 'super_admin' %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-building me-1"></i>
+                                <span class="badge bg-light text-dark badge-modern">
+                                    {% if request.session.school_id %}
+                                        {% with school_id=request.session.school_id %}
+                                            {% for school in schools %}
+                                                {% if school.id == school_id %}
+                                                    {{ school.name|truncatechars:15 }}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endwith %}
+                                    {% else %}
+                                        Global View
+                                    {% endif %}
+                                </span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-modern dropdown-menu-end">
+                                <li><h6 class="dropdown-header">School Context</h6></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="{% url 'school_switch' %}">
+                                    <i class="bi bi-arrow-left-right me-2"></i>Switch School...
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="{% url 'school_switch' %}?school_id=">
+                                    <i class="bi bi-globe me-2"></i>Global View
+                                </a></li>
+                                {% for school in schools %}
+                                <li><a class="dropdown-item dropdown-item-modern" href="{% url 'school_switch' %}?school_id={{ school.id }}">
+                                    <i class="bi bi-building me-2"></i>{{ school.name }}
+                                </a></li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- User Profile & Settings -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                                {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name }}" class="rounded-circle me-2 shadow-sm" width="36" height="36" style="border: 2px solid rgba(255,255,255,0.3);">
+                                {% else %}
+                                <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center me-2 shadow-sm" style="width: 36px; height: 36px; border: 2px solid rgba(255,255,255,0.3);">
+                                    <i class="bi bi-person-fill"></i>
+                                </div>
+                                {% endif %}
+                                <div class="d-none d-md-block">
+                                    <div class="small fw-bold">{{ user.get_full_name|default:user.username|truncatechars:15 }}</div>
+                                    <div class="x-small opacity-75">{{ user.get_role_display }}</div>
+                                </div>
+                                <i class="bi bi-chevron-down ms-1 small d-none d-md-block"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-modern dropdown-menu-end" style="min-width: 240px;">
+                                <li>
+                                    <div class="dropdown-header">
+                                        <div class="fw-bold">{{ user.get_full_name|default:user.username }}</div>
+                                        <small class="text-muted">{{ user.get_role_display }}</small>
+                                    </div>
+                                </li>
+                                {% if user.school %}
+                                <li><div class="dropdown-item text-muted small">
+                                    <i class="bi bi-building me-2"></i>{{ user.school.name }}
+                                </div></li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="#">
+                                    <i class="bi bi-person-circle me-2"></i>My Profile
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="#">
+                                    <i class="bi bi-gear me-2"></i>Settings
+                                </a></li>
+                                <li><a class="dropdown-item dropdown-item-modern" href="#">
+                                    <i class="bi bi-question-circle me-2"></i>Help & Support
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item dropdown-item-modern text-danger" href="{% url 'logout' %}">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Logout
+                                </a></li>
+                            </ul>
+                        </li>
+                        
+                        <!-- Sync Status Indicator -->
+                        <li class="nav-item">
+                            <button class="btn btn-sm btn-outline-light ms-2 rounded-pill d-flex align-items-center" id="sync-status-btn" onclick="manualSync()" title="Sync Status" style="border-width: 2px;">
+                                <i class="bi bi-wifi" id="sync-icon"></i>
+                                <span class="ms-1 d-none d-md-inline" id="sync-text">Online</span>
+                            </button>
+                        </li>
+                        
+                        <!-- PWA Install Button -->
+                        <li class="nav-item">
+                            <button class="btn btn-sm btn-outline-light ms-2 rounded-pill d-flex align-items-center install-app-btn" onclick="installApp()" title="Install App" style="display: none; border-width: 2px;">
+                                <i class="bi bi-download install-icon me-1"></i>
+                                <span class="ms-1 d-none d-md-inline">Install App</span>
+                            </button>
+                        </li>
+                    {% else %}
+                        <!-- Public Navigation -->
+                        <li class="nav-item">
+                            <a class="nav-link btn btn-outline-light btn-sm rounded-pill me-2" href="{% url 'register' %}">
+                                <i class="bi bi-person-plus me-1"></i>Register
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link btn btn-light btn-gradient btn-sm rounded-pill" href="{% url 'login' %}">
+                                <i class="bi bi-box-arrow-in-right me-1"></i>Login
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Service Worker registration and sync helpers -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => {
+                    console.log('Service Worker registered:', reg);
+
+                    // Try to register periodic sync if supported
+                    if (reg.periodicSync) {
+                        try {
+                            reg.periodicSync.register('periodic-data-sync', {
+                                minInterval: 6 * 60 * 60 * 1000 // 6 hours
+                            }).then(() => console.log('Periodic sync registered'))
+                              .catch(err => console.log('Periodic sync NOT registered', err));
+                        } catch (e) {
+                            console.log('Periodic sync error', e);
+                        }
+                    }
+                }).catch(err => console.log('Service Worker registration failed:', err));
+
+            // Helper to post message to service worker
+            function postToSW(message) {
+                if (navigator.serviceWorker.controller) {
+                    const chan = new MessageChannel();
+                    navigator.serviceWorker.controller.postMessage(message, [chan.port2]);
+                    return new Promise(resolve => {
+                        chan.port1.onmessage = e => resolve(e.data);
+                    });
+                }
+                return Promise.resolve(null);
+            }
+
+            // Store user context (token, schoolId) in SW for background sync
+            (function storeUserContext() {
+                try {
+                    const token = localStorage.getItem('jwtToken') || null;
+                    const schoolId = localStorage.getItem('schoolId') || null;
+                    if (token) {
+                        postToSW({ type: 'STORE_USER_CONTEXT', token: token, schoolId: schoolId });
+                    }
+                } catch (e) {
+                    console.log('Failed to send user context to SW', e);
+                }
+            })();
+        }
+    </script>
+
+    <!-- Main Content -->
+    <main class="container-fluid mt-3 px-3 px-md-4">
+        <!-- Enhanced Breadcrumbs with Actions -->
+        {% block breadcrumbs %}
+        {% if not hide_breadcrumbs %}
+        <div class="breadcrumb-modern bg-white shadow-sm mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'dashboard' %}" class="text-decoration-none" title="Go to Dashboard">
+                                <i class="bi bi-house-door me-1"></i>Dashboard
+                            </a>
+                        </li>
+                        {% block breadcrumb_items %}{% endblock %}
+                    </ol>
+                </nav>
+                {% block breadcrumb_actions %}
+                <div class="d-flex gap-2">
+                    {% if request.resolver_match.url_name in 'user_list,class_section_list,subject_list,grading_scale_list,enrollment_list,grading_period_list,grade_list,attendance_list,application_list,report_card_list' %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="window.history.back()" title="Go Back">
+                        <i class="bi bi-arrow-left me-1"></i>Back
+                    </button>
+                    {% endif %}
+                    {% if request.resolver_match.url_name in 'user_list,class_section_list,subject_list,grading_scale_list,enrollment_list,grading_period_list,grade_list,attendance_list' %}
+                    <a href="{% url request.resolver_match.url_name|add:'_create' %}" class="btn btn-sm btn-gradient rounded-pill" title="Add New">
+                        <i class="bi bi-plus-circle me-1"></i>Add New
+                    </a>
+                    {% endif %}
+                </div>
+                {% endblock %}
+            </div>
+        </div>
+        {% endif %}
+        {% endblock %}
+        
+        <!-- Page Header -->
+        <div class="page-header shadow-sm mb-4">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 class="h2 fw-bold mb-2">{% block page_title %}Dashboard{% endblock %}</h1>
+                    {% block page_subtitle %}
+                    <p class="text-muted mb-0">{% block page_description %}{% endblock %}</p>
+                    {% endblock %}
+                </div>
+                <div class="d-flex gap-2">
+                    {% block page_actions %}{% endblock %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages/Alerts -->
+        {% if messages %}
+        <div class="messages-container mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-modern alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    {% if message.tags == 'success' %}
+                    <i class="bi bi-check-circle-fill me-2 fs-5 text-success"></i>
+                    {% elif message.tags == 'error' or message.tags == 'danger' %}
+                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
+                    {% elif message.tags == 'warning' %}
+                    <i class="bi bi-exclamation-circle-fill me-2 fs-5 text-warning"></i>
+                    {% elif message.tags == 'info' %}
+                    <i class="bi bi-info-circle-fill me-2 fs-5 text-info"></i>
+                    {% endif %}
+                    <div>{{ message }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Main Content Block -->
+        <div class="content-wrapper mb-5">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-4 bg-white border-top shadow-sm">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px;">
+                            <i class="bi bi-mortarboard-fill text-white"></i>
+                        </div>
+                        <div>
+                            <span class="text-muted">
+                                &copy; {% now "Y" %} ReportCardApp. 
+                                {% if user.is_authenticated and user.school %}
+                                <span class="text-dark ms-1">{{ user.school.name }}</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                    <span class="text-muted">
+                        <span class="d-inline-block">
+                            <i class="bi bi-version me-1"></i>v{{ app_version|default:"1.0.0" }}
+                        </span>
+                        <span class="ms-3 d-inline-block" id="last-sync-time" title="Last sync">
+                            <i class="bi bi-clock-history me-1"></i>
+                            <span id="sync-timestamp">Just now</span>
+                        </span>
+                        {% if request.user.is_authenticated %}
+                        <span class="ms-3 d-inline-block">
+                            <i class="bi bi-person-badge me-1"></i>{{ request.user.get_role_display }}
+                        </span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Floating Action Button -->
+    <button class="floating-action-btn" id="backToTop" title="Back to Top">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+
+    <!-- Quick Actions Menu -->
+    <div class="position-fixed bottom-3 start-3" style="z-index: 999;">
+        <div class="btn-group-vertical shadow-lg rounded-pill">
+            <button class="btn btn-light rounded-pill mb-2" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+                <i class="bi bi-moon"></i>
+            </button>
+            <button class="btn btn-light rounded-pill mb-2" onclick="manualSync()" title="Manual Sync">
+                <i class="bi bi-arrow-repeat"></i>
+            </button>
+            <button class="btn btn-light rounded-pill" onclick="printPage()" title="Print Page">
+                <i class="bi bi-printer"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Modern JavaScript -->
+    <script>
+        // Network Status Monitoring
+        function updateNetworkStatus() {
+            const isOnline = navigator.onLine;
+            const offlineBanner = document.getElementById('offline-banner');
+            const syncIcon = document.getElementById('sync-icon');
+            const syncText = document.getElementById('sync-text');
+            const syncStatusBtn = document.getElementById('sync-status-btn');
+            
+            if (isOnline) {
+                offlineBanner.classList.add('d-none');
+                syncIcon.className = 'bi bi-wifi';
+                syncIcon.style.color = '';
+                syncText.textContent = 'Online';
+                syncStatusBtn.classList.remove('btn-danger');
+                syncStatusBtn.classList.add('btn-outline-light');
+                syncStatusBtn.style.borderColor = 'rgba(255,255,255,0.5)';
+            } else {
+                offlineBanner.classList.remove('d-none');
+                syncIcon.className = 'bi bi-wifi-off';
+                syncIcon.style.color = '#ff6b6b';
+                syncText.textContent = 'Offline';
+                syncStatusBtn.classList.remove('btn-outline-light');
+                syncStatusBtn.classList.add('btn-danger');
+                syncStatusBtn.style.borderColor = '#ff6b6b';
+            }
+        }
+        
+        // Initial network status
+        updateNetworkStatus();
+        
+        // Listen for network changes
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        
+        // Manual Sync Function
+        async function manualSync() {
+            const syncNotification = document.getElementById('sync-notification');
+            const syncProgress = document.getElementById('sync-progress');
+            
+            if (!navigator.onLine) {
+                showToast('Cannot sync while offline. Please check your internet connection.', 'warning');
+                return;
+            }
+            
+            // Show sync notification
+            syncNotification.classList.remove('d-none');
+            syncProgress.style.width = '0%';
+            
+            // Simulate sync progress
+            for (let i = 0; i <= 100; i += 10) {
+                await new Promise(resolve => setTimeout(resolve, 150));
+                syncProgress.style.width = i + '%';
+            }
+            
+            // Hide notification after completion
+            setTimeout(() => {
+                syncNotification.classList.add('d-none');
+                updateSyncTimestamp();
+                showToast('Data synchronized successfully!', 'success');
+            }, 1000);
+        }
+        
+        // Update last sync timestamp
+        function updateSyncTimestamp() {
+            const now = new Date();
+            const timestampElement = document.getElementById('sync-timestamp');
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            timestampElement.textContent = `Synced at ${timeString}`;
+            timestampElement.classList.add('text-success');
+            setTimeout(() => timestampElement.classList.remove('text-success'), 2000);
+        }
+        
+        // Update sync timestamp periodically
+        setInterval(updateSyncTimestamp, 60000);
+        
+        // Back to Top Button
+        const backToTopButton = document.getElementById('backToTop');
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 300) {
+                backToTopButton.style.display = 'flex';
+            } else {
+                backToTopButton.style.display = 'none';
+            }
+        });
+        
+        backToTopButton.addEventListener('click', function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        
+        // Dark Mode Toggle
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            showToast(`${newTheme === 'dark' ? 'Dark' : 'Light'} mode enabled`, 'info');
+        }
+        
+        // Load saved theme preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        }
+        
+        // Toast Notification System
+        function showToast(message, type = 'info') {
+            const toastId = 'toast-' + Date.now();
+            const toastContainer = document.getElementById('toast-container') || (() => {
+                const container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                container.style.zIndex = '9999';
+                document.body.appendChild(container);
+                return container;
+            })();
+            
+            const toast = document.createElement('div');
+            toast.id = toastId;
+            toast.className = `toast align-items-center text-bg-${type} border-0`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            
+            const icons = {
+                success: 'bi-check-circle-fill',
+                error: 'bi-exclamation-triangle-fill',
+                warning: 'bi-exclamation-circle-fill',
+                info: 'bi-info-circle-fill'
+            };
+            
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi ${icons[type] || 'bi-info-circle-fill'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+            bsToast.show();
+            
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+        }
+        
+        // Print Page Function
+        function printPage() {
+            window.print();
+        }
+        
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Initialize popovers
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function(popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+
+        // Global Search Functionality
+        function initializeGlobalSearch() {
+            const searchForm = document.getElementById('global-search-form');
+            const searchInput = document.getElementById('global-search-input');
+            const searchBtn = document.getElementById('global-search-btn');
+
+            if (!searchForm || !searchInput) return;
+
+            // Handle form submission
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                performSearch(searchInput.value.trim());
+            });
+
+            // Auto-search with debounce
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                const query = this.value.trim();
+                if (query.length >= 2) {
+                    searchTimeout = setTimeout(() => performSearch(query), 300);
+                }
+            });
+
+            // Clear search on escape
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    this.value = '';
+                    hideSearchResults();
+                }
+            });
+        }
+
+        function performSearch(query) {
+            if (!query) {
+                hideSearchResults();
+                return;
+            }
+
+            // Show loading state
+            const searchBtn = document.getElementById('global-search-btn');
+            const originalContent = searchBtn.innerHTML;
+            searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            searchBtn.disabled = true;
+
+            // Perform search via API
+            fetch(`/api/search/?q=${encodeURIComponent(query)}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                displaySearchResults(data, query);
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                showToast('Search failed. Please try again.', 'error');
+            })
+            .finally(() => {
+                // Reset button state
+                searchBtn.innerHTML = originalContent;
+                searchBtn.disabled = false;
+            });
+        }
+
+        function displaySearchResults(data, query) {
+            hideSearchResults();
+
+            if (!data.results || data.results.length === 0) {
+                showNoResults(query);
+                return;
+            }
+
+            // Create results dropdown
+            const searchInput = document.getElementById('global-search-input');
+            const inputGroup = searchInput.closest('.input-group');
+            const dropdown = document.createElement('div');
+            dropdown.id = 'search-results-dropdown';
+            dropdown.className = 'search-results-dropdown position-absolute bg-white border rounded shadow-lg';
+            dropdown.style.cssText = `
+                top: 100%;
+                left: 0;
+                right: 0;
+                z-index: 1050;
+                max-height: 400px;
+                overflow-y: auto;
+                margin-top: 5px;
+                border-radius: var(--border-radius-md);
+            `;
+
+            // Add results
+            data.results.forEach(result => {
+                const item = document.createElement('a');
+                item.href = result.url;
+                item.className = 'dropdown-item dropdown-item-modern d-flex align-items-center py-2';
+                item.innerHTML = `
+                    <div class="flex-shrink-0 me-3">
+                        <i class="bi bi-${result.icon} fs-5" style="color: var(--primary-color);"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">${highlightMatch(result.title, query)}</div>
+                        <small class="text-muted">${result.subtitle || ''}</small>
+                    </div>
+                    <div class="flex-shrink-0 ms-2">
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </div>
+                `;
+                dropdown.appendChild(item);
+            });
+
+            // Add to DOM
+            inputGroup.style.position = 'relative';
+            inputGroup.appendChild(dropdown);
+
+            // Hide on click outside
+            document.addEventListener('click', function hideResults(e) {
+                if (!inputGroup.contains(e.target)) {
+                    hideSearchResults();
+                    document.removeEventListener('click', hideResults);
+                }
+            });
+        }
+
+        function showNoResults(query) {
+            const searchInput = document.getElementById('global-search-input');
+            const inputGroup = searchInput.closest('.input-group');
+            const dropdown = document.createElement('div');
+            dropdown.id = 'search-results-dropdown';
+            dropdown.className = 'search-results-dropdown position-absolute bg-white border rounded shadow-sm p-4 text-center';
+            dropdown.style.cssText = `
+                top: 100%;
+                left: 0;
+                right: 0;
+                z-index: 1050;
+                margin-top: 5px;
+                border-radius: var(--border-radius-md);
+            `;
+            dropdown.innerHTML = `
+                <i class="bi bi-search text-muted fs-1 d-block mb-3 opacity-50"></i>
+                <h6 class="text-muted mb-2">No results found</h6>
+                <p class="text-muted small mb-0">No matches for "${query}"</p>
+            `;
+
+            inputGroup.style.position = 'relative';
+            inputGroup.appendChild(dropdown);
+        }
+
+        function hideSearchResults() {
+            const dropdown = document.getElementById('search-results-dropdown');
+            if (dropdown) {
+                dropdown.remove();
+            }
+        }
+
+        function highlightMatch(text, query) {
+            if (!query) return text;
+            const regex = new RegExp(`(${query})`, 'gi');
+            return text.replace(regex, '<mark class="bg-warning px-1 rounded">$1</mark>');
+        }
+
+        // Keyboard Shortcuts
+        function initializeKeyboardShortcuts() {
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+K or Cmd+K for search focus
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    const searchInput = document.getElementById('global-search-input');
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                        showToast('Search activated', 'info');
+                    }
+                }
+
+                // Escape to close modals/dropdowns
+                if (e.key === 'Escape') {
+                    // Close any open Bootstrap dropdowns
+                    const openDropdowns = document.querySelectorAll('.dropdown-menu.show');
+                    openDropdowns.forEach(dropdown => {
+                        const toggle = dropdown.previousElementSibling;
+                        if (toggle && toggle.classList.contains('dropdown-toggle')) {
+                            const bsDropdown = bootstrap.Dropdown.getInstance(toggle);
+                            if (bsDropdown) bsDropdown.hide();
+                        }
+                    });
+
+                    // Hide search results
+                    hideSearchResults();
+                }
+            });
+        }
+
+        // Enhanced Mobile Navigation
+        function initializeMobileNavigation() {
+            const navbarCollapse = document.getElementById('mainNavbar');
+            const navbarToggler = document.querySelector('.navbar-toggler');
+
+            if (navbarCollapse && navbarToggler) {
+                // Close mobile menu when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!navbarCollapse.contains(e.target) && !navbarToggler.contains(e.target)) {
+                        const bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
+                        if (bsCollapse && navbarCollapse.classList.contains('show')) {
+                            bsCollapse.hide();
+                        }
+                    }
+                });
+
+                // Close mobile menu when clicking on nav links
+                const navLinks = navbarCollapse.querySelectorAll('.nav-link:not(.dropdown-toggle)');
+                navLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        const bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
+                        if (bsCollapse && navbarCollapse.classList.contains('show')) {
+                            bsCollapse.hide();
+                        }
+                    });
+                });
+            }
+        }
+
+        // Initialize all navigation enhancements
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeGlobalSearch();
+            initializeKeyboardShortcuts();
+            initializeMobileNavigation();
+            updateSyncTimestamp();
+            
+            // Add some animation to cards on load
+            document.querySelectorAll('.stat-card, .glass-card').forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.5s ease-out';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+    
+    <!-- Page-specific JavaScript -->
+    {% block extra_js %}{% endblock %}
+
+    <!-- User context for PWA -->
+    {% if user.is_authenticated %}
+    <script>
+        window.userData = {
+            id: {{ user.id }},
+            token: localStorage.getItem('access_token') || localStorage.getItem('token') || '',
+            role: '{{ user.role }}',
+            school_id: {{ user.school.id|default:'null' }},
+            name: '{{ user.get_full_name|default:user.username|escapejs }}'
+        };
+        window.schoolId = {{ user.school.id|default:'null' }};
+    </script>
+    {% endif %}
+
+    <!-- PWA Install Button Logic -->
+    <script>
+        // PWA Install functionality
+        let deferredPrompt;
+        let isInstallable = false;
+        let isInstalled = false;
+
+        // Check if already installed
+        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+            isInstalled = true;
+            showInstalledState();
+        }
+
+        // Listen for the beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            isInstallable = true;
+            showInstallButton();
+            showToast('App can be installed! Tap the install button.', 'info');
+        });
+
+        // Listen for successful installation
+        window.addEventListener('appinstalled', (e) => {
+            isInstalled = true;
+            deferredPrompt = null;
+            isInstallable = false;
+            showInstalledState();
+            showToast('App installed successfully! Enjoy offline access.', 'success');
+        });
+
+        // Check for installability after a delay
+        setTimeout(() => {
+            if (!isInstallable && !isInstalled) {
+                checkInstallability();
+            }
+        }, 3000);
+
+        function showInstallButton() {
+            const installButtons = document.querySelectorAll('.install-app-btn');
+            installButtons.forEach(button => {
+                button.style.display = 'inline-block';
+                button.classList.remove('d-none');
+                button.classList.remove('installed');
+                button.classList.remove('installing');
+                button.textContent = 'Install App';
+                button.disabled = false;
+            });
+        }
+
+        function hideInstallButton() {
+            const installButtons = document.querySelectorAll('.install-app-btn');
+            installButtons.forEach(button => {
+                button.style.display = 'none';
+            });
+        }
+
+        function showInstalledState() {
+            const installButtons = document.querySelectorAll('.install-app-btn');
+            installButtons.forEach(button => {
+                button.classList.add('installed');
+                button.textContent = 'App Installed';
+                button.disabled = true;
+                button.querySelector('.install-icon')?.classList.add('installed');
+            });
+        }
+
+        function checkInstallability() {
+            // Fallback check for installability
+            if ('getInstalledRelatedApps' in navigator) {
+                try {
+                    navigator.getInstalledRelatedApps().then(relatedApps => {
+                        const isRelatedAppInstalled = relatedApps.some(app => app.url === window.location.origin);
+                        if (!isRelatedAppInstalled) {
+                            isInstallable = true;
+                            showInstallButton();
+                        }
+                    });
+                } catch (error) {
+                    console.log('Related apps check failed:', error);
+                }
+            }
+        }
+
+        function installApp() {
+            const installButtons = document.querySelectorAll('.install-app-btn');
+            
+            if (!deferredPrompt) {
+                showToast('Installation not available at this time.', 'warning');
+                return;
+            }
+
+            installButtons.forEach(button => {
+                button.classList.add('installing');
+                button.disabled = true;
+                button.textContent = 'Installing...';
+            });
+
+            deferredPrompt.prompt();
+            
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    showToast('Installing app...', 'info');
+                } else {
+                    showToast('Installation cancelled.', 'warning');
+                    installButtons.forEach(button => {
+                        button.classList.remove('installing');
+                        button.disabled = false;
+                        button.textContent = 'Install App';
+                    });
+                }
+                deferredPrompt = null;
+            });
+        }
+
+        // Make installApp function globally available
+        window.installApp = installApp;
+    </script>
+</body>
+</html>
+[file content end]

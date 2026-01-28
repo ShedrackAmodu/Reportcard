@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Search Results - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-search"></i>
+                        Search Results for "{{ query }}"
+                    </h3>
+                    <div class="card-tools">
+                        <a href="{% url 'dashboard' %}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if query %}
+                        <div class="row">
+                            <!-- Schools -->
+                            {% if results.schools %}
+                            <div class="col-md-6">
+                                <h5><i class="fas fa-school"></i> Schools</h5>
+                                <div class="list-group">
+                                    {% for school in results.schools %}
+                                    <a href="{% url 'school_update' school.id %}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ school.name }}</h6>
+                                            <small>{{ school.created_at|date:"M d, Y" }}</small>
+                                        </div>
+                                        <p class="mb-1">{{ school.description|truncatechars:100 }}</p>
+                                        <small>Students: {{ school.student_count }}, Staff: {{ school.staff_count }}</small>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Users -->
+                            {% if results.users %}
+                            <div class="col-md-6">
+                                <h5><i class="fas fa-users"></i> Users</h5>
+                                <div class="list-group">
+                                    {% for user in results.users %}
+                                    <a href="{% url 'user_update' user.id %}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ user.get_full_name|default:user.username }}</h6>
+                                            <small class="text-muted">{{ user.get_role_display }}</small>
+                                        </div>
+                                        <p class="mb-1">{{ user.email }}</p>
+                                        {% if user.school %}
+                                        <small>School: {{ user.school.name }}</small>
+                                        {% endif %}
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row mt-4">
+                            <!-- Classes -->
+                            {% if results.classes %}
+                            <div class="col-md-4">
+                                <h5><i class="fas fa-chalkboard"></i> Classes</h5>
+                                <div class="list-group">
+                                    {% for class_section in results.classes %}
+                                    <a href="{% url 'class_section_update' class_section.id %}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ class_section.name }}</h6>
+                                            <small>Grade {{ class_section.grade_level }}</small>
+                                        </div>
+                                        <p class="mb-1">{{ class_section.school.name }}</p>
+                                        {% if class_section.teacher %}
+                                        <small>Teacher: {{ class_section.teacher.get_full_name }}</small>
+                                        {% endif %}
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Subjects -->
+                            {% if results.subjects %}
+                            <div class="col-md-4">
+                                <h5><i class="fas fa-book"></i> Subjects</h5>
+                                <div class="list-group">
+                                    {% for subject in results.subjects %}
+                                    <a href="{% url 'subject_update' subject.id %}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ subject.name }}</h6>
+                                            <small>{{ subject.code }}</small>
+                                        </div>
+                                        <p class="mb-1">{{ subject.description|truncatechars:80 }}</p>
+                                        <small>School: {{ subject.school.name }}</small>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Grades -->
+                            {% if results.grades %}
+                            <div class="col-md-4">
+                                <h5><i class="fas fa-graduation-cap"></i> Grades</h5>
+                                <div class="list-group">
+                                    {% for grade in results.grades %}
+                                    <a href="{% url 'grade_update' grade.id %}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ grade.student.get_full_name }}</h6>
+                                            <small>{{ grade.letter_grade }}</small>
+                                        </div>
+                                        <p class="mb-1">{{ grade.subject.name }} - {{ grade.grading_period.name }}</p>
+                                        <small>Score: {{ grade.score }} | {{ grade.school.name }}</small>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row mt-4">
+                            <!-- Attendance -->
+                            {% if results.attendances %}
+                            <div class="col-md-6">
+                                <h5><i class="fas fa-calendar-check"></i> Attendance</h5>
+                                <div class="list-group">
+                                    {% for attendance in results.attendances %}
+                                    <a href="{% url 'attendance_update' attendance.id %}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ attendance.student.get_full_name }}</h6>
+                                            <small class="badge badge-{{ attendance.status_badge }}">{{ attendance.get_status_display }}</small>
+                                        </div>
+                                        <p class="mb-1">{{ attendance.class_section.name }} - {{ attendance.date }}</p>
+                                        {% if attendance.notes %}
+                                        <small>Notes: {{ attendance.notes }}</small>
+                                        {% endif %}
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% if not results.schools and not results.users and not results.classes and not results.subjects and not results.grades and not results.attendances %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            No results found for "{{ query }}". Try searching with different keywords.
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Please enter a search query.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Add search highlighting
+    if ('{{ query }}') {
+        var query = '{{ query|escapejs }}';
+        $('body').highlight(query);
+    }
+});
+</script>
+{% endblock %}

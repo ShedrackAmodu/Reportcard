@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} - SchoolSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'grade_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Grades
+                </a>
+            </div>
+
+            <!-- Selection Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Select Class and Subject</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="subject" class="form-label">Subject *</label>
+                            <select name="subject" id="subject" class="form-select" onchange="this.form.submit()">
+                                <option value="">Select Subject</option>
+                                {% for subject in subjects %}
+                                    <option value="{{ subject.id }}" {% if subject.id|stringformat:"s" == selected_subject_id %}selected{% endif %}>
+                                        {{ subject.name }} ({{ subject.code }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="grading_period" class="form-label">Grading Period *</label>
+                            <select name="grading_period" id="grading_period" class="form-select" onchange="this.form.submit()">
+                                <option value="">Select Grading Period</option>
+                                {% for period in grading_periods %}
+                                    <option value="{{ period.id }}" {% if period.id|stringformat:"s" == selected_grading_period_id %}selected{% endif %}>
+                                        {{ period.name }} ({{ period.start_date }} - {{ period.end_date }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="class_section" class="form-label">Class Section *</label>
+                            <select name="class_section" id="class_section" class="form-select" onchange="this.form.submit()">
+                                <option value="">Select Class Section</option>
+                                {% for class_section in class_sections %}
+                                    <option value="{{ class_section.id }}" {% if class_section.id|stringformat:"s" == selected_class_id %}selected{% endif %}>
+                                        {{ class_section.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if students %}
+            <!-- Bulk Entry Form -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Enter Grades for {{ students|length }} Students</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="clearAllGrades()">
+                        <i class="fas fa-eraser"></i> Clear All
+                    </button>
+                </div>
+                <div class="card-body">
+                    <form method="post" data-offline="true">
+                        {% csrf_token %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Student Name</th>
+                                        <th>Score (0-100)</th>
+                                        <th>Letter Grade</th>
+                                        <th>Comments</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student in students %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ student.get_full_name|default:student.username }}</strong>
+                                            <br><small class="text-muted">{{ student.username }}</small>
+                                        </td>
+                                        <td>
+                                            <input type="number"
+                                                   name="score_{{ student.id }}"
+                                                   id="score_{{ student.id }}"
+                                                   class="form-control score-input"
+                                                   min="0"
+                                                   max="100"
+                                                   step="0.1"
+                                                   value="{% if student.id in existing_grades %}{{ existing_grades|get_item:student.id.score|floatformat:1 }}{% endif %}"
+                                                   onchange="calculateLetterGrade({{ student.id }})">
+                                        </td>
+                                        <td>
+                                            <input type="text"
+                                                   name="letter_grade_{{ student.id }}"
+                                                   id="letter_grade_{{ student.id }}"
+                                                   class="form-control letter-grade-display"
+                                                   readonly
+                                                   value="{% if student.id in existing_grades %}{{ existing_grades|get_item:student.id.letter_grade }}{% endif %}">
+                                        </td>
+                                        <td>
+                                            <textarea name="comments_{{ student.id }}"
+                                                      id="comments_{{ student.id }}"
+                                                      class="form-control"
+                                                      rows="1"
+                                                      placeholder="Optional comments">{% if student.id in existing_grades %}{{ existing_grades|get_item:student.id.comments }}{% endif %}</textarea>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <small class="text-muted">
+                                    * Letter grades are auto-calculated based on the school's grading scale
+                                </small>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Save All Grades
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% elif selected_subject_id and selected_grading_period_id and selected_class_id %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                No students found in the selected class section.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Grading scale data - in production, this should be fetched dynamically
+const gradingScale = [
+    {'grade': 'A', 'min_score': 90, 'max_score': 100},
+    {'grade': 'B', 'min_score': 80, 'max_score': 89.9},
+    {'grade': 'C', 'min_score': 70, 'max_score': 79.9},
+    {'grade': 'D', 'min_score': 60, 'max_score': 69.9},
+    {'grade': 'F', 'min_score': 0, 'max_score': 59.9}
+];
+
+function calculateLetterGrade(studentId) {
+    const scoreInput = document.getElementById(`score_${studentId}`);
+    const letterGradeInput = document.getElementById(`letter_grade_${studentId}`);
+
+    const score = parseFloat(scoreInput.value);
+    if (!isNaN(score) && score >= 0 && score <= 100) {
+        let letterGrade = 'F';
+        for (const range of gradingScale) {
+            if (score >= range.min_score && score <= range.max_score) {
+                letterGrade = range.grade;
+                break;
+            }
+        }
+        letterGradeInput.value = letterGrade;
+    } else {
+        letterGradeInput.value = '';
+    }
+}
+
+function clearAllGrades() {
+    if (confirm('Are you sure you want to clear all entered grades?')) {
+        document.querySelectorAll('.score-input').forEach(input => {
+            input.value = '';
+        });
+        document.querySelectorAll('.letter-grade-display').forEach(input => {
+            input.value = '';
+        });
+        document.querySelectorAll('textarea[name^="comments_"]').forEach(textarea => {
+            textarea.value = '';
+        });
+    }
+}
+
+// Calculate letter grades on page load for existing scores
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.score-input').forEach(input => {
+        if (input.value) {
+            const studentId = input.id.split('_')[1];
+            calculateLetterGrade(studentId);
+        }
+    });
+});
+
+// Offline form handling
+document.querySelector('form[data-offline="true"]')?.addEventListener('submit', function(e) {
+    if (!navigator.onLine) {
+        console.log('Bulk grade form submitted offline');
+    }
+});
+</script>
+
+<style>
+.score-input {
+    max-width: 100px;
+}
+
+.letter-grade-display {
+    max-width: 80px;
+    text-align: center;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
