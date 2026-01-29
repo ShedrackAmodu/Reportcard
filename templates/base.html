@@ -577,7 +577,7 @@
                                     <i class="bi bi-question-circle me-2"></i>Help & Support
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item dropdown-item-modern text-danger" href="{% url 'logout' %}">
+                                <li><a class="dropdown-item dropdown-item-modern text-danger" href="{% url 'auth:logout' %}">
                                     <i class="bi bi-box-arrow-right me-2"></i>Logout
                                 </a></li>
                             </ul>
@@ -601,12 +601,12 @@
                     {% else %}
                         <!-- Public Navigation -->
                         <li class="nav-item">
-                            <a class="nav-link btn btn-outline-light btn-sm rounded-pill me-2" href="{% url 'register' %}">
+                            <a class="nav-link btn btn-outline-light btn-sm rounded-pill me-2" href="{% url 'auth:register' %}">
                                 <i class="bi bi-person-plus me-1"></i>Register
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link btn btn-light btn-gradient btn-sm rounded-pill" href="{% url 'login' %}">
+                            <a class="nav-link btn btn-light btn-gradient btn-sm rounded-pill" href="{% url 'auth:login' %}">
                                 <i class="bi bi-box-arrow-in-right me-1"></i>Login
                             </a>
                         </li>
@@ -823,6 +823,21 @@
                 syncStatusBtn.classList.remove('btn-danger');
                 syncStatusBtn.classList.add('btn-outline-light');
                 syncStatusBtn.style.borderColor = 'rgba(255,255,255,0.5)';
+                // Trigger immediate sync via service worker when back online
+                try {
+                    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                        postToSW({ type: 'SYNC_NOW' }).then(res => console.log('SW sync triggered', res));
+                    }
+
+                    // Also try to register a background sync as a fallback
+                    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                        navigator.serviceWorker.ready.then(reg => {
+                            reg.sync.register('background-sync').catch(e => console.log('Background sync register failed', e));
+                        }).catch(() => {});
+                    }
+                } catch (e) {
+                    console.log('Trigger sync failed', e);
+                }
             } else {
                 offlineBanner.classList.remove('d-none');
                 syncIcon.className = 'bi bi-wifi-off';
@@ -1354,4 +1369,3 @@
     </script>
 </body>
 </html>
-[file content end]

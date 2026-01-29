@@ -229,11 +229,11 @@
                 <p class="hero-subtitle">
                     A comprehensive, offline-first solution for managing student grades, attendance, and report cards across multiple institutions with cutting-edge technology.
                 </p>
-                <div class="d-flex flex-wrap gap-3">
-                    <a href="{% url 'register' %}" class="btn btn-light btn-lg rounded-pill px-4 shadow-sm">
+                    <div class="d-flex flex-wrap gap-3">
+                    <a href="{% url 'auth:register' %}" class="btn btn-light btn-lg rounded-pill px-4 shadow-sm">
                         <i class="bi bi-rocket-takeoff me-2"></i>Get Started Free
                     </a>
-                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg rounded-pill px-4">
+                    <a href="{% url 'auth:login' %}" class="btn btn-outline-light btn-lg rounded-pill px-4">
                         <i class="bi bi-play-circle me-2"></i>Watch Demo
                     </a>
                     <button class="btn btn-secondary btn-lg rounded-pill px-4 install-app-btn" style="display: none;" onclick="installApp()">
@@ -286,7 +286,7 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <a href="{% url 'login' %}" class="btn btn-gradient w-100 rounded-pill">
+                        <a href="{% url 'auth:login' %}" class="btn btn-gradient w-100 rounded-pill">
                             <i class="bi bi-box-arrow-in-right me-2"></i>Try Interactive Demo
                         </a>
                     </div>
@@ -561,7 +561,7 @@
                         <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Advanced analytics</li>
                         <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Custom integrations</li>
                     </ul>
-                    <a href="{% url 'register' %}" class="btn btn-outline-primary w-100 rounded-pill">Start Free Trial</a>
+                    <a href="{% url 'auth:register' %}" class="btn btn-outline-primary w-100 rounded-pill">Start Free Trial</a>
                 </div>
             </div>
             
@@ -580,7 +580,7 @@
                         <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Advanced analytics</li>
                         <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Custom integrations</li>
                     </ul>
-                    <a href="{% url 'register' %}" class="btn btn-gradient w-100 rounded-pill">Start Free Trial</a>
+                    <a href="{% url 'auth:register' %}" class="btn btn-gradient w-100 rounded-pill">Start Free Trial</a>
                 </div>
             </div>
             
@@ -622,10 +622,10 @@
                     Join thousands of educational institutions already using ReportCardApp to streamline their operations and improve student outcomes.
                 </p>
                 <div class="d-flex flex-wrap justify-content-center gap-3">
-                    <a href="{% url 'register' %}" class="btn btn-light btn-lg rounded-pill px-5 shadow-sm">
+                    <a href="{% url 'auth:register' %}" class="btn btn-light btn-lg rounded-pill px-5 shadow-sm">
                         <i class="bi bi-rocket-takeoff me-2"></i>Start Free Trial
                     </a>
-                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg rounded-pill px-5">
+                    <a href="{% url 'auth:login' %}" class="btn btn-outline-light btn-lg rounded-pill px-5">
                         <i class="bi bi-box-arrow-in-right me-2"></i>Login
                     </a>
                     <button class="btn btn-secondary btn-lg rounded-pill px-5 install-app-btn" style="display: none;" onclick="installApp()">

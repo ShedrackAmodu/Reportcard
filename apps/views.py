@@ -430,7 +430,7 @@ def landing_view(request):
 
 def offline_view(request):
     """Offline fallback page for PWA"""
-    return render(request, 'schools/offline.html', {
+    return render(request, 'offline.html', {
         'title': 'Offline - ReportCardApp'
     })
 

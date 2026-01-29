@@ -89,7 +89,7 @@ def login_view(request):
     return render(request, 'auth/login.html', {'form': form, 'schools': schools})
 
 
-@login_required(login_url='login')
+@login_required(login_url='auth:login')
 def logout_view(request):
     """
     Handle user logout.
@@ -144,7 +144,7 @@ def register_view(request):
                     school=form.cleaned_data['school']
                 )
                 messages.success(request, 'Registration successful! Please login.')
-                return redirect('login')
+                return redirect('auth:login')
             else:
                 # Admin/Teacher applications need approval
                 application = form.save(commit=False)

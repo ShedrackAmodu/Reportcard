@@ -6,18 +6,19 @@ from django.conf.urls.static import static
 from django.views.static import serve
 from django.urls import re_path
 
-from apps.views import landing_view, manifest_view, sw_view
+from apps.views import landing_view, manifest_view, sw_view, offline_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     
-    # Authentication app
-    path("auth/", include("authentication.urls")),
-    path("accounts/", include("authentication.urls")),
+    # Authentication app (accessible as /auth/ and /accounts/ for compatibility)
+    path("auth/", include("authentication.urls", namespace="auth")),
+    path("accounts/", include("authentication.urls", namespace="accounts")),
     
     # PWA files
     path('manifest.json', manifest_view, name='manifest'),
     path('sw.js', sw_view, name='sw'),
+    path('offline/', offline_view, name='offline'),
     
     # Landing page
     path("", landing_view, name='landing'),

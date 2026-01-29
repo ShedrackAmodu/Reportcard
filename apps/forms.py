@@ -1,3 +1,13 @@
+"""
+Forms for schools, users, and other app models.
+
+Authentication forms (LoginForm, RegistrationForm, UserApplicationForm) 
+have been moved to authentication.forms module.
+
+Import from authentication.forms:
+    from authentication.forms import LoginForm, RegistrationForm, UserApplicationForm
+"""
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import School, User, ClassSection, Subject, GradingScale, StudentEnrollment, GradingPeriod, Grade, Attendance, UserApplication
