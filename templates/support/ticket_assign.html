@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Assign Ticket: {{ ticket.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-person-plus"></i>
+                        Assign Ticket to Staff Member
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Ticket:</strong> {{ ticket.title }} (ID: #{{ ticket.id }})
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="assigned_to" class="form-label">
+                                Select Staff Member
+                                <span class="text-danger">*</span>
+                            </label>
+                            <select name="assigned_to" id="assigned_to" class="form-select">
+                                <option value="">-- Select a staff member --</option>
+                                {% for staff in staff_members %}
+                                    <option value="{{ staff.id }}">{{ staff.get_full_name }} ({{ staff.username }})</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select a staff member to assign this ticket to.</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'support_ticket_detail' ticket.id %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Ticket
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-person-check"></i> Assign Ticket
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

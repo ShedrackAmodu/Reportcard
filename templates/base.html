@@ -284,16 +284,9 @@
         }
     </style>
     
-    <!-- Default theme colors -->
+    <!-- Dynamic School Branding -->
     <style>
-        :root {
-            --primary-color: #667eea;
-            --secondary-color: #764ba2;
-            --accent-color: #4facfe;
-        }
-        .nav-gradient { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important; }
-        .btn-gradient { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); }
-        .stat-icon.primary { background: linear-gradient(135deg, var(--primary-color)20 0%, var(--secondary-color)20 100%); color: var(--primary-color); }
+        {{ branding_css|safe }}
     </style>
     
     <!-- Block for page-specific CSS -->
@@ -1249,123 +1242,7 @@
     </script>
     {% endif %}
 
-    <!-- PWA Install Button Logic -->
-    <script>
-        // PWA Install functionality
-        let deferredPrompt;
-        let isInstallable = false;
-        let isInstalled = false;
-
-        // Check if already installed
-        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
-            isInstalled = true;
-            showInstalledState();
-        }
-
-        // Listen for the beforeinstallprompt event
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            isInstallable = true;
-            showInstallButton();
-            showToast('App can be installed! Tap the install button.', 'info');
-        });
-
-        // Listen for successful installation
-        window.addEventListener('appinstalled', (e) => {
-            isInstalled = true;
-            deferredPrompt = null;
-            isInstallable = false;
-            showInstalledState();
-            showToast('App installed successfully! Enjoy offline access.', 'success');
-        });
-
-        // Check for installability after a delay
-        setTimeout(() => {
-            if (!isInstallable && !isInstalled) {
-                checkInstallability();
-            }
-        }, 3000);
-
-        function showInstallButton() {
-            const installButtons = document.querySelectorAll('.install-app-btn');
-            installButtons.forEach(button => {
-                button.style.display = 'inline-block';
-                button.classList.remove('d-none');
-                button.classList.remove('installed');
-                button.classList.remove('installing');
-                button.textContent = 'Install App';
-                button.disabled = false;
-            });
-        }
-
-        function hideInstallButton() {
-            const installButtons = document.querySelectorAll('.install-app-btn');
-            installButtons.forEach(button => {
-                button.style.display = 'none';
-            });
-        }
-
-        function showInstalledState() {
-            const installButtons = document.querySelectorAll('.install-app-btn');
-            installButtons.forEach(button => {
-                button.classList.add('installed');
-                button.textContent = 'App Installed';
-                button.disabled = true;
-                button.querySelector('.install-icon')?.classList.add('installed');
-            });
-        }
-
-        function checkInstallability() {
-            // Fallback check for installability
-            if ('getInstalledRelatedApps' in navigator) {
-                try {
-                    navigator.getInstalledRelatedApps().then(relatedApps => {
-                        const isRelatedAppInstalled = relatedApps.some(app => app.url === window.location.origin);
-                        if (!isRelatedAppInstalled) {
-                            isInstallable = true;
-                            showInstallButton();
-                        }
-                    });
-                } catch (error) {
-                    console.log('Related apps check failed:', error);
-                }
-            }
-        }
-
-        function installApp() {
-            const installButtons = document.querySelectorAll('.install-app-btn');
-            
-            if (!deferredPrompt) {
-                showToast('Installation not available at this time.', 'warning');
-                return;
-            }
-
-            installButtons.forEach(button => {
-                button.classList.add('installing');
-                button.disabled = true;
-                button.textContent = 'Installing...';
-            });
-
-            deferredPrompt.prompt();
-            
-            deferredPrompt.userChoice.then((choiceResult) => {
-                if (choiceResult.outcome === 'accepted') {
-                    showToast('Installing app...', 'info');
-                } else {
-                    showToast('Installation cancelled.', 'warning');
-                    installButtons.forEach(button => {
-                        button.classList.remove('installing');
-                        button.disabled = false;
-                        button.textContent = 'Install App';
-                    });
-                }
-                deferredPrompt = null;
-            });
-        }
-
-        // Make installApp function globally available
-        window.installApp = installApp;
-    </script>
+    <!-- PWA Installation System -->
+    <script src="{% static 'js/pwa-installer.js' %}"></script>
 </body>
 </html>

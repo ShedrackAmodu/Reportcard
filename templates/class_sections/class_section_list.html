@@ -1,60 +1,261 @@
 {% extends 'base.html' %}
-{% block title %}{{ title }} - SchoolSync{% endblock %}
+{% load static %}
+
+{% block title %}Manage Class Sections - ReportCardApp{% endblock %}
+
+{% block page_title %}Class Section Management{% endblock %}
+
+{% block page_description %}
+Manage class sections and their assignments. Add new classes, edit existing ones, or delete as needed.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">Class Sections</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'class_section_create' %}" class="btn btn-gradient">
+        <i class="bi bi-plus-circle me-2"></i>Add New Class
+    </a>
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-filter me-2"></i>Filter by Grade
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item active" href="#">All Grades</a></li>
+            <li><hr class="dropdown-divider"></li>
+            {% for grade in grade_levels %}
+            <li><a class="dropdown-item" href="?grade={{ grade }}">{{ grade }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>{{ title }}</h2>
-                <a href="{% url 'class_section_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Add Class Section
+<div class="row">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            {% if class_sections %}
+            <div class="table-responsive">
+                <table class="table table-modern table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Class Information</th>
+                            <th>Grade Level</th>
+                            <th>Teacher</th>
+                            <th>Students</th>
+                            <th>Subjects</th>
+                            <th>School</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class_section in class_sections %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ class_section.name }}</div>
+                                <small class="text-muted">Section ID: {{ class_section.id }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary badge-modern">{{ class_section.grade_level }}</span>
+                            </td>
+                            <td>
+                                {% if class_section.teacher %}
+                                <div class="d-flex align-items-center">
+                                    {% if class_section.teacher.profile_picture %}
+                                    <img src="{{ class_section.teacher.profile_picture.url }}" alt="{{ class_section.teacher.get_full_name }}" class="rounded-circle me-2" width="24" height="24" style="object-fit: cover;">
+                                    {% else %}
+                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px;">
+                                        <i class="bi bi-person-fill text-white" style="font-size: 0.75rem;"></i>
+                                    </div>
+                                    {% endif %}
+                                    <span>{{ class_section.teacher.get_full_name|default:class_section.teacher.username }}</span>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No teacher assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% with students_count=class_section.get_students_count %}
+                                <span class="badge bg-info badge-modern">{{ students_count }} students</span>
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% with subjects=class_section.get_subjects %}
+                                {% if subjects %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for subject in subjects %}
+                                    <span class="badge bg-secondary badge-modern">{{ subject.name }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No subjects</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% if class_section.school %}
+                                <span class="badge bg-secondary badge-modern">{{ class_section.school.name }}</span>
+                                {% else %}
+                                <span class="badge bg-warning badge-modern">No school</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'class_section_update' class_section.id %}" class="btn btn-sm btn-outline-primary" title="Edit Class">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-danger" 
+                                       onclick="confirmDelete('{{ class_section.name }}', '{% url 'class_section_delete' class_section.id %}')" 
+                                       title="Delete Class">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if class_sections.has_other_pages %}
+            <nav aria-label="Class sections pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if class_sections.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ class_sections.previous_page_number }}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in class_sections.paginator.page_range %}
+                    {% if num == class_sections.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > class_sections.number|add:'-3' and num < class_sections.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if class_sections.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ class_sections.next_page_number }}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-mortarboard"></i>
+                </div>
+                <h5 class="text-muted">No class sections found</h5>
+                <p class="text-muted">Get started by creating a new class section.</p>
+                <a href="{% url 'class_section_create' %}" class="btn btn-gradient">
+                    <i class="bi bi-plus-circle me-2"></i>Create Class Section
                 </a>
             </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 
-            <div class="card">
-                <div class="card-body">
-                    {% if class_sections %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Grade Level</th>
-                                    <th>School</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for class_section in class_sections %}
-                                <tr>
-                                    <td>{{ class_section.name }}</td>
-                                    <td>{{ class_section.grade_level }}</td>
-                                    <td>{{ class_section.school.name }}</td>
-                                    <td>
-                                        <a href="{% url 'class_section_update' class_section.pk %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-edit"></i> Edit
-                                        </a>
-                                        <a href="{% url 'class_section_delete' class_section.pk %}" class="btn btn-sm btn-outline-danger">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <p class="text-muted">No class sections found.</p>
-                        <a href="{% url 'class_section_create' %}" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Create First Class Section
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="delete-class-name"></strong>?</p>
+                <p class="text-danger">This action will remove the class section and may affect student enrollments.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a id="delete-confirm-btn" href="#" class="btn btn-danger">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(className, deleteUrl) {
+    document.getElementById('delete-class-name').textContent = className;
+    document.getElementById('delete-confirm-btn').href = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Add class section statistics
+document.addEventListener('DOMContentLoaded', function() {
+    const totalClasses = document.querySelectorAll('tbody tr').length;
+    const classesWithTeachers = document.querySelectorAll('td:contains("No teacher assigned")').length;
+    
+    if (totalClasses > 0) {
+        const statsHtml = `
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-mortarboard"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${totalClasses}</h6>
+                            <small class="text-muted">Total Classes</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="bi bi-person-badge"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${totalClasses - classesWithTeachers}</h6>
+                            <small class="text-muted">Classes with Teachers</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${classesWithTeachers}</h6>
+                            <small class="text-muted">Classes without Teachers</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon info">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">0</h6>
+                            <small class="text-muted">Total Students</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.querySelector('.glass-card').insertAdjacentHTML('afterend', statsHtml);
+    }
+});
+</script>
 {% endblock %}

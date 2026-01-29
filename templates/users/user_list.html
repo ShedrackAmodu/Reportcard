@@ -1,100 +1,216 @@
 {% extends 'base.html' %}
-{% block title %}{{ title }} - SchoolSync{% endblock %}
+{% load static %}
+
+{% block title %}Manage Users - ReportCardApp{% endblock %}
+
+{% block page_title %}User Management{% endblock %}
+
+{% block page_description %}
+Manage users across your school. Add new users, edit existing ones, or delete accounts as needed.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">Users</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'user_create' %}" class="btn btn-gradient">
+        <i class="bi bi-plus-circle me-2"></i>Add New User
+    </a>
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-filter me-2"></i>Filter by Role
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item {% if not role_filter %}active{% endif %}" href="{% url 'user_list' %}">All Roles</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item {% if role_filter == 'admin' %}active{% endif %}" href="?role=admin">Admin</a></li>
+            <li><a class="dropdown-item {% if role_filter == 'teacher' %}active{% endif %}" href="?role=teacher">Teacher</a></li>
+            <li><a class="dropdown-item {% if role_filter == 'student' %}active{% endif %}" href="?role=student">Student</a></li>
+        </ul>
+    </div>
+    <button class="btn btn-outline-secondary" onclick="exportUsersCSV()">
+        <i class="bi bi-download me-2"></i>Export CSV
+    </button>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>{{ title }}</h2>
-                <a href="{% url 'user_create' %}" class="btn btn-primary">
-                    <i class="fas fa-user-plus"></i> Add User
+<div class="row">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            {% if users %}
+            <div class="table-responsive">
+                <table class="table table-modern table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th class="text-center">Avatar</th>
+                            <th>User Information</th>
+                            <th>Role</th>
+                            <th>School</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td class="text-center">
+                                {% if user.profile_picture %}
+                                <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name }}" class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                {% else %}
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="bi bi-person-fill text-muted"></i>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="fw-bold">{{ user.get_full_name|default:user.username }}</div>
+                                <small class="text-muted">{{ user.email }}</small><br>
+                                <small class="text-muted">Username: {{ user.username }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary badge-modern">{{ user.get_role_display }}</span>
+                            </td>
+                            <td>
+                                {% if user.school %}
+                                <span class="badge bg-secondary badge-modern">{{ user.school.name }}</span>
+                                {% else %}
+                                <span class="badge bg-warning badge-modern">No School</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                <span class="badge bg-success badge-modern">Active</span>
+                                {% else %}
+                                <span class="badge bg-danger badge-modern">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'user_update' user.id %}" class="btn btn-sm btn-outline-primary" title="Edit User">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-danger" 
+                                       onclick="confirmDelete('{{ user.get_full_name|default:user.username }}', '{% url 'user_delete' user.id %}')" 
+                                       title="Delete User">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if users.has_other_pages %}
+            <nav aria-label="Users pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if users.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ users.previous_page_number }}{% if role_filter %}&role={{ role_filter }}{% endif %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in users.paginator.page_range %}
+                    {% if num == users.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > users.number|add:'-3' and num < users.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if role_filter %}&role={{ role_filter }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if users.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ users.next_page_number }}{% if role_filter %}&role={{ role_filter }}{% endif %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <h5 class="text-muted">No users found</h5>
+                <p class="text-muted">Get started by creating a new user.</p>
+                <a href="{% url 'user_create' %}" class="btn btn-gradient">
+                    <i class="bi bi-plus-circle me-2"></i>Create User
                 </a>
             </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 
-            <!-- Filters -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <form method="get" class="row g-3">
-                        <div class="col-md-4">
-                            <label for="role" class="form-label">Filter by Role</label>
-                            <select name="role" id="role" class="form-select">
-                                <option value="">All Roles</option>
-                                <option value="super_admin" {% if role_filter == 'super_admin' %}selected{% endif %}>Super Admin</option>
-                                <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
-                                <option value="teacher" {% if role_filter == 'teacher' %}selected{% endif %}>Teacher</option>
-                                <option value="student" {% if role_filter == 'student' %}selected{% endif %}>Student</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <button type="submit" class="btn btn-outline-primary me-2">
-                                <i class="fas fa-filter"></i> Filter
-                            </button>
-                            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times"></i> Clear
-                            </a>
-                        </div>
-                    </form>
-                </div>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-
-            <div class="card">
-                <div class="card-body">
-                    {% if users %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Username</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    {% if user.role == 'super_admin' %}
-                                    <th>School</th>
-                                    {% endif %}
-                                    <th>Joined</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user_obj in users %}
-                                <tr>
-                                    <td>{{ user_obj.username }}</td>
-                                    <td>{{ user_obj.get_full_name|default:"—" }}</td>
-                                    <td>{{ user_obj.email|default:"—" }}</td>
-                                    <td>
-                                        <span class="badge bg-{% if user_obj.role == 'super_admin' %}danger{% elif user_obj.role == 'admin' %}warning{% elif user_obj.role == 'teacher' %}info{% else %}secondary{% endif %}">
-                                            {{ user_obj.get_role_display }}
-                                        </span>
-                                    </td>
-                                    {% if user.role == 'super_admin' %}
-                                    <td>{{ user_obj.school.name|default:"—" }}</td>
-                                    {% endif %}
-                                    <td>{{ user_obj.date_joined|date:"M d, Y" }}</td>
-                                    <td>
-                                        <a href="{% url 'user_update' user_obj.pk %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-edit"></i> Edit
-                                        </a>
-                                        <a href="{% url 'user_delete' user_obj.pk %}" class="btn btn-sm btn-outline-danger">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <p class="text-muted">No users found.</p>
-                        <a href="{% url 'user_create' %}" class="btn btn-primary">
-                            <i class="fas fa-user-plus"></i> Create First User
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="delete-user-name"></strong>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a id="delete-confirm-btn" href="#" class="btn btn-danger">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(userName, deleteUrl) {
+    document.getElementById('delete-user-name').textContent = userName;
+    document.getElementById('delete-confirm-btn').href = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function exportUsersCSV() {
+    // Show loading state
+    const exportBtn = event.target;
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Exporting...';
+    exportBtn.disabled = true;
+    
+    // Trigger export
+    window.location.href = '{% url "export_users_csv" %}';
+    
+    // Reset button after delay
+    setTimeout(() => {
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }, 2000);
+}
+
+// Add success message for successful operations
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for success messages and show toast
+    const messages = document.querySelectorAll('.alert-success');
+    if (messages.length > 0) {
+        messages.forEach(msg => {
+            showToast(msg.textContent.trim(), 'success');
+        });
+    }
+});
+</script>
 {% endblock %}

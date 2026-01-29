@@ -1,62 +1,253 @@
 {% extends 'base.html' %}
-{% block title %}{{ title }} - SchoolSync{% endblock %}
+{% load static %}
+
+{% block title %}Manage Subjects - ReportCardApp{% endblock %}
+
+{% block page_title %}Subject Management{% endblock %}
+
+{% block page_description %}
+Manage subjects and their assignments. Add new subjects, edit existing ones, or delete as needed.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">Subjects</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'subject_create' %}" class="btn btn-gradient">
+        <i class="bi bi-plus-circle me-2"></i>Add New Subject
+    </a>
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-filter me-2"></i>Filter by School
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item active" href="#">All Schools</a></li>
+            <li><hr class="dropdown-divider"></li>
+            {% for school in schools %}
+            <li><a class="dropdown-item" href="?school={{ school.id }}">{{ school.name }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>{{ title }}</h2>
-                <a href="{% url 'subject_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Add Subject
+<div class="row">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            {% if subjects %}
+            <div class="table-responsive">
+                <table class="table table-modern table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Subject Information</th>
+                            <th>Code</th>
+                            <th>School</th>
+                            <th>Classes</th>
+                            <th>Teachers</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject in subjects %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ subject.name }}</div>
+                                <small class="text-muted">{{ subject.description|truncatechars:100|default:"No description" }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary badge-modern">{{ subject.code }}</span>
+                            </td>
+                            <td>
+                                {% if subject.school %}
+                                <span class="badge bg-secondary badge-modern">{{ subject.school.name }}</span>
+                                {% else %}
+                                <span class="badge bg-warning badge-modern">No school</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% with classes=subject.get_class_sections %}
+                                {% if classes %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for class_section in classes %}
+                                    <span class="badge bg-info badge-modern">{{ class_section.name }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No classes</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% with teachers=subject.get_teachers %}
+                                {% if teachers %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for teacher in teachers %}
+                                    <span class="badge bg-success badge-modern">{{ teacher.get_full_name|default:teacher.username }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No teachers</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'subject_update' subject.id %}" class="btn btn-sm btn-outline-primary" title="Edit Subject">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-danger" 
+                                       onclick="confirmDelete('{{ subject.name }}', '{% url 'subject_delete' subject.id %}')" 
+                                       title="Delete Subject">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if subjects.has_other_pages %}
+            <nav aria-label="Subjects pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if subjects.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ subjects.previous_page_number }}{% if request.GET.school %}&school={{ request.GET.school }}{% endif %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in subjects.paginator.page_range %}
+                    {% if num == subjects.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > subjects.number|add:'-3' and num < subjects.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.school %}&school={{ request.GET.school }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if subjects.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ subjects.next_page_number }}{% if request.GET.school %}&school={{ request.GET.school }}{% endif %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-book"></i>
+                </div>
+                <h5 class="text-muted">No subjects found</h5>
+                <p class="text-muted">Get started by creating a new subject.</p>
+                <a href="{% url 'subject_create' %}" class="btn btn-gradient">
+                    <i class="bi bi-plus-circle me-2"></i>Create Subject
                 </a>
             </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 
-            <div class="card">
-                <div class="card-body">
-                    {% if subjects %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Code</th>
-                                    <th>Description</th>
-                                    <th>School</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for subject in subjects %}
-                                <tr>
-                                    <td>{{ subject.name }}</td>
-                                    <td>{{ subject.code }}</td>
-                                    <td>{{ subject.description|truncatechars:50 }}</td>
-                                    <td>{{ subject.school.name }}</td>
-                                    <td>
-                                        <a href="{% url 'subject_update' subject.pk %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-edit"></i> Edit
-                                        </a>
-                                        <a href="{% url 'subject_delete' subject.pk %}" class="btn btn-sm btn-outline-danger">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <p class="text-muted">No subjects found.</p>
-                        <a href="{% url 'subject_create' %}" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Create First Subject
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="delete-subject-name"></strong>?</p>
+                <p class="text-danger">This action will remove the subject and may affect class assignments and grades.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a id="delete-confirm-btn" href="#" class="btn btn-danger">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(subjectName, deleteUrl) {
+    document.getElementById('delete-subject-name').textContent = subjectName;
+    document.getElementById('delete-confirm-btn').href = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Add subject statistics
+document.addEventListener('DOMContentLoaded', function() {
+    const totalSubjects = document.querySelectorAll('tbody tr').length;
+    const subjectsWithClasses = document.querySelectorAll('td:contains("No classes")').length;
+    const subjectsWithTeachers = document.querySelectorAll('td:contains("No teachers")').length;
+    
+    if (totalSubjects > 0) {
+        const statsHtml = `
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${totalSubjects}</h6>
+                            <small class="text-muted">Total Subjects</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="bi bi-mortarboard"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${totalSubjects - subjectsWithClasses}</h6>
+                            <small class="text-muted">Subjects with Classes</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="bi bi-person-badge"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${totalSubjects - subjectsWithTeachers}</h6>
+                            <small class="text-muted">Subjects with Teachers</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon info">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">{{ schools|length }}</h6>
+                            <small class="text-muted">Schools</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.querySelector('.glass-card').insertAdjacentHTML('afterend', statsHtml);
+    }
+});
+</script>
 {% endblock %}

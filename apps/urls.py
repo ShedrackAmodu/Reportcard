@@ -4,9 +4,9 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     SchoolViewSet, UserViewSet, ClassSectionViewSet, SubjectViewSet,
-    GradingScaleViewSet, GradingPeriodViewSet, StudentEnrollmentViewSet, GradeViewSet, AttendanceViewSet, sync_view, search_api_view,
+    GradingScaleViewSet, GradingPeriodViewSet, StudentEnrollmentViewSet, GradeViewSet, AttendanceViewSet, SchoolProfileViewSet, SupportTicketViewSet, sync_view, search_api_view,
     dashboard_view, landing_view, school_switch, offline_view, manifest_view, sw_view,
-    apk_download_view,
+    apk_download_view, analytics_dashboard, search_view, push_sync_view,
     school_list, school_create, school_update, school_delete,
     user_list, user_create, user_update, user_delete,
     class_section_list, class_section_create, class_section_update, class_section_delete,
@@ -18,9 +18,17 @@ from .views import (
     attendance_list, attendance_create, attendance_update, attendance_delete,
     application_list, application_review,
     report_card_pdf, report_card_list, batch_report_card_pdf,
-    export_grades_excel, export_attendance_excel, export_users_csv
+    export_grades_excel, export_attendance_excel, export_users_csv,
+    school_profile_view, support_ticket_list, support_ticket_create, support_ticket_detail,
+    support_dashboard, support_ticket_update, support_ticket_assign
 )
-from .views import push_sync_view
+from .api_views import (
+    pwa_tracking_view, pwa_status_view, pwa_install_guide_view, pwa_health_check_view
+)
+from .report_template_views import (
+    template_list, template_create, template_edit, template_delete, 
+    template_duplicate, template_preview, template_import
+)
 
 router = DefaultRouter()
 router.register(r'schools', SchoolViewSet)
@@ -40,6 +48,12 @@ urlpatterns = [
     path('api/sync/', sync_view, name='sync'),
     path('api/sync/push/', push_sync_view, name='sync_push'),
     path('api/search/', search_api_view, name='search_api'),
+    
+    # PWA Installation Analytics and Tracking
+    path('api/pwa-tracking/', pwa_tracking_view, name='pwa_tracking'),
+    path('api/pwa-status/', pwa_status_view, name='pwa_status'),
+    path('api/pwa-install-guide/', pwa_install_guide_view, name='pwa_install_guide'),
+    path('api/pwa-health-check/', pwa_health_check_view, name='pwa_health_check'),
 
     # PWA files
     path('manifest.json', manifest_view, name='manifest'),
@@ -120,6 +134,14 @@ urlpatterns = [
     path('report-cards/<int:student_id>/pdf/', report_card_pdf, name='report_card_pdf'),
     path('report-cards/batch-pdf/<int:class_id>/', batch_report_card_pdf, name='batch_report_card_pdf'),
 
+    # Report Templates Management
+    path('report-templates/', template_list, name='template_list'),
+    path('report-templates/create/', template_create, name='template_create'),
+    path('report-templates/<int:template_id>/edit/', template_edit, name='template_edit'),
+    path('report-templates/<int:template_id>/delete/', template_delete, name='template_delete'),
+    path('report-templates/<int:template_id>/duplicate/', template_duplicate, name='template_duplicate'),
+    path('report-templates/<int:template_id>/preview/', template_preview, name='template_preview'),
+    path('report-templates/import/', template_import, name='template_import'),
 
     # Export Views
     path('export/grades/excel/', export_grades_excel, name='export_grades_excel'),
@@ -128,4 +150,21 @@ urlpatterns = [
 
     # APK Download
     path('download/apk/', apk_download_view, name='apk_download'),
+
+    # Analytics Dashboard
+    path('analytics/', analytics_dashboard, name='analytics_dashboard'),
+
+    # School Profile
+    path('school-profile/', school_profile_view, name='school_profile'),
+
+    # Support Tickets
+    path('support/tickets/', support_ticket_list, name='support_ticket_list'),
+    path('support/tickets/create/', support_ticket_create, name='support_ticket_create'),
+    path('support/tickets/<int:pk>/', support_ticket_detail, name='support_ticket_detail'),
+    path('support/tickets/<int:pk>/update/', support_ticket_update, name='support_ticket_update'),
+    path('support/tickets/<int:pk>/assign/', support_ticket_assign, name='support_ticket_assign'),
+    path('support/dashboard/', support_dashboard, name='support_dashboard'),
+
+    # Search
+    path('search/', search_view, name='search'),
 ]

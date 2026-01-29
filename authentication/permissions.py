@@ -100,3 +100,31 @@ class IsTeacherOrAdmin(BasePermission):
         if hasattr(obj, 'school'):
             return obj.school == request.user.school
         return False
+
+
+# Function-based permission decorators for views
+def is_school_admin_or_superuser(user):
+    """Check if user is school admin or super admin"""
+    if not user.is_authenticated:
+        return False
+    if user.role == 'super_admin':
+        return True
+    return user.role == 'admin' and user.school is not None
+
+
+def is_school_admin_or_teacher(user):
+    """Check if user is school admin, teacher, or super admin"""
+    if not user.is_authenticated:
+        return False
+    if user.role == 'super_admin':
+        return True
+    return user.role in ['admin', 'teacher'] and user.school is not None
+
+
+def is_school_admin_or_superuser_or_teacher(user):
+    """Check if user is school admin, super admin, or teacher"""
+    if not user.is_authenticated:
+        return False
+    if user.role == 'super_admin':
+        return True
+    return user.role in ['admin', 'teacher'] and user.school is not None

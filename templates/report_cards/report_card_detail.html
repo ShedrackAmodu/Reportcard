@@ -1,0 +1,344 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Report Card - {{ report_card.student.get_full_name }} - ReportCardApp{% endblock %}
+
+{% block page_title %}Report Card{% endblock %}
+
+{% block page_description %}
+Detailed report card for {{ report_card.student.get_full_name }} for {{ report_card.grading_period.name }}.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'report_card_list' %}">Report Cards</a></li>
+<li class="breadcrumb-item active">Detail</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'report_card_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Back to List
+    </a>
+    <a href="{% url 'report_card_pdf' report_card.student.id %}" class="btn btn-outline-success">
+        <i class="bi bi-download me-2"></i>Download PDF
+    </a>
+    {% if not report_card.is_published %}
+    <button type="button" class="btn btn-outline-warning" onclick="publishReportCard({{ report_card.id }})">
+        <i class="bi bi-send me-2"></i>Publish
+    </button>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Report Card Header -->
+    <div class="col-12">
+        <div class="glass-card p-4 mb-4">
+            <div class="row">
+                <div class="col-md-8">
+                    <h2 class="fw-bold mb-2">{{ report_card.student.get_full_name|default:report_card.student.username }}</h2>
+                    <p class="text-muted mb-2">{{ report_card.student.username }}</p>
+                    <div class="d-flex gap-3">
+                        <span class="badge bg-primary badge-modern">{{ report_card.grading_period.name }}</span>
+                        <span class="badge bg-info badge-modern">{{ report_card.academic_year }}</span>
+                        {% if report_card.is_published %}
+                        <span class="badge bg-success badge-modern">Published</span>
+                        {% else %}
+                        <span class="badge bg-warning badge-modern">Draft</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    {% if report_card.student.profile_picture %}
+                    <img src="{{ report_card.student.profile_picture.url }}" alt="{{ report_card.student.get_full_name }}" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover;">
+                    {% else %}
+                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                        <i class="bi bi-person-fill text-white" style="font-size: 2rem;"></i>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Summary -->
+    <div class="col-lg-4">
+        <div class="glass-card p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-award me-2"></i>Academic Summary
+            </h6>
+            <div class="row text-center">
+                <div class="col-6">
+                    <div class="fw-bold fs-4 text-primary">{{ report_card.total_subjects }}</div>
+                    <small class="text-muted">Subjects</small>
+                </div>
+                <div class="col-6">
+                    <div class="fw-bold fs-4 text-success">{{ report_card.average_grade|floatformat:1 }}%</div>
+                    <small class="text-muted">Average</small>
+                </div>
+            </div>
+            
+            <hr class="my-4">
+            
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted">Highest Grade</span>
+                <span class="badge bg-success badge-modern">{{ report_card.highest_grade|floatformat:1 }}%</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted">Lowest Grade</span>
+                <span class="badge bg-danger badge-modern">{{ report_card.lowest_grade|floatformat:1 }}%</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted">Attendance Rate</span>
+                <span class="badge bg-info badge-modern">{{ report_card.attendance_rate }}%</span>
+            </div>
+        </div>
+
+        <!-- Grading Period Info -->
+        <div class="glass-card p-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-calendar-range me-2"></i>Period Information
+            </h6>
+            <div class="mb-2">
+                <strong>Start Date:</strong>
+                <br>
+                <span class="text-muted">{{ report_card.grading_period.start_date|date:"F j, Y" }}</span>
+            </div>
+            <div class="mb-2">
+                <strong>End Date:</strong>
+                <br>
+                <span class="text-muted">{{ report_card.grading_period.end_date|date:"F j, Y" }}</span>
+            </div>
+            <div class="mb-2">
+                <strong>Generated:</strong>
+                <br>
+                <span class="text-muted">{{ report_card.created_at|date:"F j, Y" }} at {{ report_card.created_at|time:"H:i" }}</span>
+            </div>
+            <div>
+                <strong>Status:</strong>
+                <br>
+                {% if report_card.is_published %}
+                <span class="badge bg-success badge-modern">Published</span>
+                {% else %}
+                <span class="badge bg-warning badge-modern">Draft</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Subject Grades -->
+    <div class="col-lg-8">
+        <div class="glass-card p-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-book me-2"></i>Subject Grades
+            </h6>
+            
+            {% if report_card.grades %}
+            <div class="table-responsive">
+                <table class="table table-modern table-hover">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Score</th>
+                            <th>Grade</th>
+                            <th>Teacher</th>
+                            <th>Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grade in report_card.grades %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ grade.subject.name }}</div>
+                                <small class="text-muted">{{ grade.subject.code }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary badge-modern">{{ grade.score|floatformat:1 }}%</span>
+                            </td>
+                            <td>
+                                {% if grade.letter_grade %}
+                                <span class="badge bg-{{ grade.get_letter_grade_color }} badge-modern">{{ grade.letter_grade }}</span>
+                                {% else %}
+                                <span class="text-muted">No grade</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if grade.teacher %}
+                                <span class="text-muted">{{ grade.teacher.get_full_name|default:grade.teacher.username }}</span>
+                                {% else %}
+                                <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if grade.comments %}
+                                <div class="text-truncate" style="max-width: 200px;" title="{{ grade.comments }}">
+                                    {{ grade.comments|truncatechars:50 }}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No comments</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-book text-muted fs-1"></i>
+                <p class="text-muted mt-2">No grades available for this grading period.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Attendance Summary -->
+        {% if report_card.attendance_summary %}
+        <div class="glass-card p-4 mt-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-calendar-check me-2"></i>Attendance Summary
+            </h6>
+            <div class="row">
+                <div class="col-md-3 text-center">
+                    <div class="fw-bold text-success fs-4">{{ report_card.attendance_summary.present }}</div>
+                    <small class="text-muted">Present</small>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="fw-bold text-danger fs-4">{{ report_card.attendance_summary.absent }}</div>
+                    <small class="text-muted">Absent</small>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="fw-bold text-warning fs-4">{{ report_card.attendance_summary.late }}</div>
+                    <small class="text-muted">Late</small>
+                </div>
+                <div class="col-md-3 text-center">
+                    <div class="fw-bold text-info fs-4">{{ report_card.attendance_summary.excused }}</div>
+                    <small class="text-muted">Excused</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Comments Section -->
+        {% if report_card.comments %}
+        <div class="glass-card p-4 mt-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-chat-dots me-2"></i>Teacher Comments
+            </h6>
+            <div class="border rounded p-3">
+                <p class="mb-0">{{ report_card.comments }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Actions Footer -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted">Report Card ID: {{ report_card.id }}</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'report_card_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Back to List
+                    </a>
+                    <a href="{% url 'report_card_pdf' report_card.student.id %}" class="btn btn-outline-success">
+                        <i class="bi bi-download me-2"></i>Download PDF
+                    </a>
+                    {% if not report_card.is_published %}
+                    <button type="button" class="btn btn-outline-warning" onclick="publishReportCard({{ report_card.id }})">
+                        <i class="bi bi-send me-2"></i>Publish Report Card
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function publishReportCard(reportId) {
+    alert('Publish functionality would be implemented with a custom view.');
+}
+
+// Add interactive features to the report card
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects to grade rows
+    const gradeRows = document.querySelectorAll('tbody tr');
+    gradeRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = 'rgba(0, 123, 255, 0.05)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+
+    // Add animation to summary cards
+    const summaryCards = document.querySelectorAll('.stat-card, .glass-card');
+    summaryCards.forEach(card => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+    });
+
+    setTimeout(() => {
+        summaryCards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.transition = 'all 0.5s ease-out';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    }, 100);
+
+    // Add print functionality
+    const printBtn = document.createElement('button');
+    printBtn.className = 'btn btn-outline-primary btn-sm me-2';
+    printBtn.innerHTML = '<i class="bi bi-printer me-2"></i>Print';
+    printBtn.onclick = function() {
+        window.print();
+    };
+
+    // Add print button to actions
+    const actionsContainer = document.querySelector('.d-flex.gap-2');
+    if (actionsContainer) {
+        actionsContainer.insertBefore(printBtn, actionsContainer.firstChild);
+    }
+});
+
+// Add grade distribution visualization
+document.addEventListener('DOMContentLoaded', function() {
+    const grades = document.querySelectorAll('.badge.bg-primary');
+    if (grades.length > 0) {
+        // Create a simple visualization
+        const container = document.createElement('div');
+        container.className = 'mt-3';
+        container.innerHTML = `
+            <div class="row">
+                <div class="col-12">
+                    <h6 class="fw-bold mb-2">Grade Distribution</h6>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-success" style="width: 30%">A</div>
+                        <div class="progress-bar bg-primary" style="width: 25%">B</div>
+                        <div class="progress-bar bg-warning" style="width: 20%">C</div>
+                        <div class="progress-bar bg-danger" style="width: 15%">D</div>
+                        <div class="progress-bar bg-secondary" style="width: 10%">F</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const reportCardContainer = document.querySelector('.glass-card');
+        if (reportCardContainer) {
+            reportCardContainer.parentNode.insertBefore(container, reportCardContainer.nextSibling);
+        }
+    }
+});
+</script>
+{% endblock %}

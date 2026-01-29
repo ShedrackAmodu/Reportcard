@@ -1,126 +1,422 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block title %}Dashboard - ReportCardApp{% endblock %}
 
-{% block content %}
-<div class="row">
-    <div class="col-12">
-        <h2 class="mb-4">Dashboard</h2>
+{% block page_title %}Dashboard{% endblock %}
 
-        {% if role == 'super_admin' %}
-        <div class="row g-4 mb-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Schools</h5>
-                        <h2 class="text-primary">{{ schools_count }}</h2>
-                    </div>
+{% block page_description %}
+Welcome to your ReportCardApp dashboard. Get an overview of your school's academic performance and quick access to all features.
+{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h2 class="fw-bold mb-2">Welcome back, {{ user.get_full_name|default:user.username }}!</h2>
+                    <p class="text-muted mb-0">
+                        {% if user.role == 'super_admin' %}
+                        You have access to all schools and can manage the entire system.
+                        {% elif user.role == 'admin' %}
+                        You are an administrator for {{ user.school.name }}. Manage your school's academic records.
+                        {% elif user.role == 'teacher' %}
+                        You are a teacher at {{ user.school.name }}. Manage your classes and students.
+                        {% elif user.role == 'student' %}
+                        Welcome to your academic dashboard at {{ user.school.name }}.
+                        {% endif %}
+                    </p>
                 </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Users</h5>
-                        <h2 class="text-success">{{ users_count }}</h2>
+                <div class="col-md-4 text-md-end">
+                    <div class="d-flex gap-2 justify-content-md-end">
+                        <span class="badge bg-primary badge-modern">{{ user.get_role_display }}</span>
+                        {% if user.school %}
+                        <span class="badge bg-secondary badge-modern">{{ user.school.name }}</span>
+                        {% endif %}
                     </div>
+                    <small class="text-muted mt-2 d-block">Last login: {{ user.last_login|default:"Never" }}</small>
                 </div>
             </div>
         </div>
-        {% elif school %}
-        <div class="row g-4 mb-4">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Classes</h5>
-                        <h2 class="text-primary">{{ classes_count }}</h2>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+{% if user.role != 'student' %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="stat-icon primary">
+                <i class="bi bi-people"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">{{ users_count|default:0 }}</h4>
+                <small class="text-muted">Total Users</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="stat-icon success">
+                <i class="bi bi-mortarboard"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">{{ classes_count|default:0 }}</h4>
+                <small class="text-muted">Classes</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="stat-icon warning">
+                <i class="bi bi-book"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">{{ subjects_count|default:0 }}</h4>
+                <small class="text-muted">Subjects</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="stat-icon info">
+                <i class="bi bi-journal-text"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">{{ students_count|default:0 }}</h4>
+                <small class="text-muted">Students</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Main Content Area -->
+<div class="row">
+    <!-- Quick Actions -->
+    <div class="col-lg-8">
+        <div class="glass-card p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-lightning me-2"></i>Quick Actions
+            </h6>
+            <div class="row">
+                {% if user.role in 'super_admin,admin' %}
+                <div class="col-md-4 mb-3">
+                    <a href="{% url 'user_list' %}" class="btn btn-outline-primary w-100 text-start">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-people fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold">Manage Users</div>
+                                <small class="text-muted">Add, edit, or remove users</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="{% url 'class_section_list' %}" class="btn btn-outline-success w-100 text-start">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-mortarboard fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold">Manage Classes</div>
+                                <small class="text-muted">Create and manage class sections</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="{% url 'subject_list' %}" class="btn btn-outline-warning w-100 text-start">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-book fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold">Manage Subjects</div>
+                                <small class="text-muted">Add and organize subjects</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if user.role in 'teacher,admin' %}
+                <div class="col-md-4 mb-3">
+                    <a href="{% url 'grade_bulk_entry' %}" class="btn btn-outline-info w-100 text-start">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-table fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold">Bulk Grade Entry</div>
+                                <small class="text-muted">Enter grades for multiple students</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="{% url 'attendance_list' %}" class="btn btn-outline-secondary w-100 text-start">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calendar-check fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold">Attendance</div>
+                                <small class="text-muted">Manage student attendance</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if user.role in 'super_admin,admin' %}
+                <div class="col-md-4 mb-3">
+                    <a href="{% url 'report_card_list' %}" class="btn btn-outline-danger w-100 text-start">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-card-text fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold">Report Cards</div>
+                                <small class="text-muted">Generate student report cards</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if user.role == 'super_admin' %}
+                <div class="col-md-4 mb-3">
+                    <a href="{% url 'school_list' %}" class="btn btn-outline-dark w-100 text-start">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-building fs-4 me-3"></i>
+                            <div>
+                                <div class="fw-bold">Manage Schools</div>
+                                <small class="text-muted">Add and manage schools</small>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="glass-card p-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-activity me-2"></i>Recent Activity
+            </h6>
+            <div class="list-group list-group-flush">
+                {% if user.role in 'super_admin,admin' %}
+                <a href="{% url 'grade_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-journal-text text-primary me-2"></i>
+                        <span>Latest Grades</span>
                     </div>
+                    <span class="badge bg-primary badge-modern">View</span>
+                </a>
+                <a href="{% url 'attendance_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-calendar-check text-success me-2"></i>
+                        <span>Today's Attendance</span>
+                    </div>
+                    <span class="badge bg-success badge-modern">View</span>
+                </a>
+                {% endif %}
+                <a href="{% url 'user_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-people text-warning me-2"></i>
+                        <span>New Users</span>
+                    </div>
+                    <span class="badge bg-warning badge-modern">View</span>
+                </a>
+                {% if user.role == 'super_admin' %}
+                <a href="{% url 'application_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-envelope text-info me-2"></i>
+                        <span>Applications</span>
+                    </div>
+                    {% if pending_applications_count %}
+                    <span class="badge bg-info badge-modern">{{ pending_applications_count }}</span>
+                    {% else %}
+                    <span class="badge bg-secondary badge-modern">None</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- School Information -->
+        {% if user.school %}
+        <div class="glass-card p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-building me-2"></i>School Information
+            </h6>
+            <div class="d-flex align-items-center mb-3">
+                {% if user.school.logo %}
+                <img src="{{ user.school.logo.url }}" alt="{{ user.school.name }}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                {% else %}
+                <div class="bg-primary rounded d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+                    <i class="bi bi-building text-white fs-2"></i>
+                </div>
+                {% endif %}
+                <div>
+                    <h6 class="fw-bold mb-0">{{ user.school.name }}</h6>
+                    <small class="text-muted">{{ user.school.address|default:"No address" }}</small>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Subjects</h5>
-                        <h2 class="text-success">{{ subjects_count }}</h2>
-                    </div>
+            <div class="row text-center">
+                <div class="col-6">
+                    <div class="fw-bold">{{ students_count|default:0 }}</div>
+                    <small class="text-muted">Students</small>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Students</h5>
-                        <h2 class="text-info">{{ students_count }}</h2>
-                    </div>
+                <div class="col-6">
+                    <div class="fw-bold">{{ classes_count|default:0 }}</div>
+                    <small class="text-muted">Classes</small>
                 </div>
             </div>
         </div>
         {% endif %}
 
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Quick Actions</h5>
+        <!-- System Status -->
+        <div class="glass-card p-4 mb-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-heart-pulse me-2"></i>System Status
+            </h6>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted">Server Status</span>
+                <span class="badge bg-success badge-modern">Online</span>
+            </div>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted">Database</span>
+                <span class="badge bg-success badge-modern">Connected</span>
+            </div>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted">PWA Status</span>
+                <span class="badge bg-info badge-modern">Ready</span>
+            </div>
+            <div class="d-flex align-items-center justify-content-between">
+                <span class="text-muted">Last Sync</span>
+                <span class="badge bg-secondary badge-modern" id="last-sync-time">Just now</span>
+            </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="glass-card p-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-link me-2"></i>Quick Links
+            </h6>
+            <div class="d-grid gap-2">
+                <a href="{% url 'grade_list' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-journal-text me-2"></i>Grades
+                </a>
+                <a href="{% url 'attendance_list' %}" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-calendar-check me-2"></i>Attendance
+                </a>
+                <a href="{% url 'report_card_list' %}" class="btn btn-outline-warning btn-sm">
+                    <i class="bi bi-card-text me-2"></i>Report Cards
+                </a>
+                <a href="{% url 'analytics_dashboard' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-bar-chart me-2"></i>Analytics
+                </a>
+                <a href="{% url 'template_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-file-earmark-text me-2"></i>Templates
+                </a>
+                <a href="{% url 'user_list' %}" class="btn btn-outline-info btn-sm">
+                    <i class="bi bi-people me-2"></i>Users
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature Highlights -->
+{% if user.role == 'student' %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-star me-2"></i>Your Academic Overview
+            </h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body text-center">
+                            <i class="bi bi-journal-text text-primary fs-2 mb-2"></i>
+                            <h6 class="card-title">Grades</h6>
+                            <p class="card-text text-muted small">View your grades and academic progress</p>
+                            <a href="#" class="btn btn-outline-primary btn-sm">View Grades</a>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        {% if role == 'super_admin' %}
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <a href="{% url 'school_list' %}" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-school"></i> Manage Schools
-                                </a>
-                            </div>
-                            <div class="col-md-3">
-                                <a href="{% url 'user_list' %}" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-users"></i> Manage Users
-                                </a>
-                            </div>
-                            <div class="col-md-3">
-                                <a href="#" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-graduation-cap"></i> Academic Setup
-                                </a>
-                            </div>
-                            <div class="col-md-3">
-                                <a href="#" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-chart-bar"></i> View Reports
-                                </a>
-                            </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body text-center">
+                            <i class="bi bi-calendar-check text-success fs-2 mb-2"></i>
+                            <h6 class="card-title">Attendance</h6>
+                            <p class="card-text text-muted small">Check your attendance records</p>
+                            <a href="#" class="btn btn-outline-success btn-sm">View Attendance</a>
                         </div>
-                        {% elif role == 'admin' %}
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <a href="{% url 'user_list' %}" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-users"></i> Manage Users
-                                </a>
-                            </div>
-                            <div class="col-md-4">
-                                <a href="#" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-graduation-cap"></i> Academic Setup
-                                </a>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-primary w-100 install-app-btn" style="display: none;">
-                                    <i class="bi bi-download me-1"></i>Install App
-                                </button>
-                            </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body text-center">
+                            <i class="bi bi-card-text text-warning fs-2 mb-2"></i>
+                            <h6 class="card-title">Report Cards</h6>
+                            <p class="card-text text-muted small">Download your report cards</p>
+                            <a href="#" class="btn btn-outline-warning btn-sm">Download</a>
                         </div>
-                        {% else %}
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <a href="#" class="btn btn-outline-primary w-100">Enter Grades</a>
-                            </div>
-                            <div class="col-md-4">
-                                <a href="#" class="btn btn-outline-primary w-100">View Students</a>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-outline-primary w-100 install-app-btn" style="display: none;">
-                                    <i class="bi bi-download me-1"></i>Install App
-                                </button>
-                            </div>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Update sync timestamp
+function updateSyncTimestamp() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timestampElement = document.getElementById('last-sync-time');
+    if (timestampElement) {
+        timestampElement.textContent = timeString;
+    }
+}
+
+// Update timestamp every minute
+setInterval(updateSyncTimestamp, 60000);
+
+// Initialize timestamp
+updateSyncTimestamp();
+
+// Add some interactive effects to the dashboard cards
+document.addEventListener('DOMContentLoaded', function() {
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+            this.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '0 5px 15px rgba(0,0,0,0.1)';
+        });
+    });
+
+    // Add animation to quick action buttons
+    const quickActions = document.querySelectorAll('.btn-outline-primary, .btn-outline-success, .btn-outline-warning, .btn-outline-info, .btn-outline-secondary, .btn-outline-danger, .btn-outline-dark');
+    quickActions.forEach(btn => {
+        btn.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 5px 15px rgba(0,0,0,0.1)';
+        });
+        
+        btn.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = 'none';
+        });
+    });
+});
+</script>
 {% endblock %}

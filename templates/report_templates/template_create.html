@@ -1,0 +1,452 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Report Template - {{ school.name }}{% endblock %}
+
+{% block page_title %}Create Report Template{% endblock %}
+
+{% block page_description %}
+Create a new custom report card template for {{ school.name }}. Customize the layout, styling, and content to match your school's requirements.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'template_list' %}">Report Templates</a></li>
+<li class="breadcrumb-item active">Create Template</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'template_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Back to Templates
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="glass-card p-4">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <!-- Basic Information -->
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-info-circle me-2"></i>Basic Information
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_name" class="form-label fw-bold">Template Name</label>
+                            <input type="text" name="name" class="form-control" id="id_name" required placeholder="e.g., Modern Report Card">
+                            <div class="form-text">Choose a descriptive name for your template</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_template_type" class="form-label fw-bold">Template Type</label>
+                            <select name="template_type" class="form-select" id="id_template_type">
+                                {% for type_key, type_label in template_types %}
+                                <option value="{{ type_key }}">{{ type_label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select the type of template you're creating</div>
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="is_default" class="form-check-input" id="id_is_default">
+                        <label class="form-check-label" for="id_is_default">
+                            <strong>Set as Default Template</strong>
+                        </label>
+                        <div class="form-text">This template will be used by default for new report cards</div>
+                    </div>
+                </div>
+
+                <!-- Layout Configuration -->
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-layout-text-window me-2"></i>Layout Configuration
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_header_background_color" class="form-label fw-bold">Header Background Color</label>
+                            <div class="input-group">
+                                <input type="color" name="header_background_color" class="form-control form-control-color" id="id_header_background_color" value="{{ default_values.header_background_color }}" title="Choose header background color">
+                                <input type="text" name="header_background_color_text" class="form-control" value="{{ default_values.header_background_color }}" id="id_header_background_color_text">
+                            </div>
+                            <div class="form-text">Background color for the report header</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_header_text_color" class="form-label fw-bold">Header Text Color</label>
+                            <div class="input-group">
+                                <input type="color" name="header_text_color" class="form-control form-control-color" id="id_header_text_color" value="{{ default_values.header_text_color }}" title="Choose header text color">
+                                <input type="text" name="header_text_color_text" class="form-control" value="{{ default_values.header_text_color }}" id="id_header_text_color_text">
+                            </div>
+                            <div class="form-text">Text color for the report header</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="include_student_photo" class="form-check-input" id="id_include_student_photo" checked>
+                                <label class="form-check-label" for="id_include_student_photo">
+                                    Student Photo
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="include_teacher_comments" class="form-check-input" id="id_include_teacher_comments" checked>
+                                <label class="form-check-label" for="id_include_teacher_comments">
+                                    Teacher Comments
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="include_principal_signature" class="form-check-input" id="id_include_principal_signature" checked>
+                                <label class="form-check-label" for="id_include_principal_signature">
+                                    Principal Signature
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="include_grading_scale" class="form-check-input" id="id_include_grading_scale" checked>
+                                <label class="form-check-label" for="id_include_grading_scale">
+                                    Grading Scale
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="include_attendance_summary" class="form-check-input" id="id_include_attendance_summary" checked>
+                                <label class="form-check-label" for="id_include_attendance_summary">
+                                    Attendance Summary
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Styling Options -->
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-palette me-2"></i>Styling Options
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_font_family" class="form-label fw-bold">Font Family</label>
+                            <input type="text" name="font_family" class="form-control" id="id_font_family" value="{{ default_values.font_family }}" placeholder="e.g., Arial, sans-serif">
+                            <div class="form-text">Font family for the report card</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_font_size" class="form-label fw-bold">Base Font Size</label>
+                            <input type="number" name="font_size" class="form-control" id="id_font_size" value="{{ default_values.font_size }}" min="8" max="24">
+                            <div class="form-text">Base font size in pixels</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="id_heading_font_size" class="form-label fw-bold">Heading Font Size</label>
+                            <input type="number" name="heading_font_size" class="form-control" id="id_heading_font_size" value="{{ default_values.heading_font_size }}" min="8" max="36">
+                            <div class="form-text">Heading font size in pixels</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="id_primary_color" class="form-label fw-bold">Primary Color</label>
+                            <div class="input-group">
+                                <input type="color" name="primary_color" class="form-control form-control-color" id="id_primary_color" value="{{ default_values.primary_color }}" title="Choose primary color">
+                                <input type="text" name="primary_color_text" class="form-control" value="{{ default_values.primary_color }}" id="id_primary_color_text">
+                            </div>
+                            <div class="form-text">Primary brand color</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_secondary_color" class="form-label fw-bold">Secondary Color</label>
+                            <div class="input-group">
+                                <input type="color" name="secondary_color" class="form-control form-control-color" id="id_secondary_color" value="{{ default_values.secondary_color }}" title="Choose secondary color">
+                                <input type="text" name="secondary_color_text" class="form-control" value="{{ default_values.secondary_color }}" id="id_secondary_color_text">
+                            </div>
+                            <div class="form-text">Secondary brand color</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="id_border_style" class="form-label fw-bold">Border Style</label>
+                            <select name="border_style" class="form-select" id="id_border_style">
+                                <option value="solid" selected>Solid</option>
+                                <option value="dashed">Dashed</option>
+                                <option value="dotted">Dotted</option>
+                                <option value="none">None</option>
+                            </select>
+                            <div class="form-text">Style of borders in the report</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_border_color" class="form-label fw-bold">Border Color</label>
+                            <div class="input-group">
+                                <input type="color" name="border_color" class="form-control form-control-color" id="id_border_color" value="{{ default_values.border_color }}" title="Choose border color">
+                                <input type="text" name="border_color_text" class="form-control" value="{{ default_values.border_color }}" id="id_border_color_text">
+                            </div>
+                            <div class="form-text">Color of borders in the report</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Configuration -->
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-file-text me-2"></i>Content Configuration
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_report_title" class="form-label fw-bold">Report Title</label>
+                            <input type="text" name="report_title" class="form-control" id="id_report_title" value="{{ default_values.report_title }}" placeholder="e.g., Report Card">
+                            <div class="form-text">Title that appears on the report card</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_grading_period_label" class="form-label fw-bold">Grading Period Label</label>
+                            <input type="text" name="grading_period_label" class="form-control" id="id_grading_period_label" value="{{ default_values.grading_period_label }}" placeholder="e.g., Grading Period">
+                            <div class="form-text">Label for the grading period field</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_teacher_label" class="form-label fw-bold">Teacher Label</label>
+                            <input type="text" name="teacher_label" class="form-control" id="id_teacher_label" value="{{ default_values.teacher_label }}" placeholder="e.g., Class Teacher">
+                            <div class="form-text">Label for the teacher field</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_principal_label" class="form-label fw-bold">Principal Label</label>
+                            <input type="text" name="principal_label" class="form-control" id="id_principal_label" value="{{ default_values.principal_label }}" placeholder="e.g., Principal">
+                            <div class="form-text">Label for the principal field</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_footer_text" class="form-label fw-bold">Footer Text</label>
+                            <textarea name="footer_text" class="form-control" id="id_footer_text" rows="3" placeholder="e.g., Generated by School Name Report System">{{ default_values.footer_text }}</textarea>
+                            <div class="form-text">Text that appears in the footer of the report</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="show_school_stamp" class="form-check-input" id="id_show_school_stamp" checked>
+                                <label class="form-check-label" for="id_show_school_stamp">
+                                    Show School Stamp
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="show_contact_info" class="form-check-input" id="id_show_contact_info" checked>
+                                <label class="form-check-label" for="id_show_contact_info">
+                                    Show Contact Information
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logo Upload -->
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-image me-2"></i>School Logo
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="id_header_logo" class="form-label fw-bold">Upload Logo</label>
+                            <input type="file" name="header_logo" class="form-control" id="id_header_logo" accept="image/*">
+                            <div class="form-text">Upload your school logo (optional)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>Create Template
+                    </button>
+                    <a href="{% url 'template_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="glass-card p-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-lightbulb me-2"></i>Template Tips
+            </h6>
+            <div class="alert alert-info">
+                <h6 class="alert-heading">Before Creating Your Template</h6>
+                <ul class="mb-0">
+                    <li>Choose colors that match your school's branding</li>
+                    <li>Consider the readability of your font choices</li>
+                    <li>Think about what information is most important to include</li>
+                    <li>Test your template with sample data before using it</li>
+                </ul>
+            </div>
+            
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-palette me-2"></i>Color Suggestions
+            </h6>
+            <div class="row">
+                <div class="col-4 mb-2">
+                    <div class="color-swatch" style="background-color: #007bff; height: 30px; border-radius: 4px;"></div>
+                    <small class="text-muted">Primary</small>
+                </div>
+                <div class="col-4 mb-2">
+                    <div class="color-swatch" style="background-color: #6c757d; height: 30px; border-radius: 4px;"></div>
+                    <small class="text-muted">Secondary</small>
+                </div>
+                <div class="col-4 mb-2">
+                    <div class="color-swatch" style="background-color: #28a745; height: 30px; border-radius: 4px;"></div>
+                    <small class="text-muted">Accent</small>
+                </div>
+            </div>
+            
+            <h6 class="fw-bold mb-3 mt-4">
+                <i class="bi bi-file-earmark-text me-2"></i>Template Features
+            </h6>
+            <ul class="list-unstyled">
+                <li><i class="bi bi-check-circle text-success me-2"></i>Customizable layout</li>
+                <li><i class="bi bi-check-circle text-success me-2"></i>Brand color matching</li>
+                <li><i class="bi bi-check-circle text-success me-2"></i>Logo integration</li>
+                <li><i class="bi bi-check-circle text-success me-2"></i>Multiple template types</li>
+                <li><i class="bi bi-check-circle text-success me-2"></i>Export/import functionality</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-control-color {
+    width: 50px;
+    height: 38px;
+    padding: 0.375rem;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+}
+
+.color-swatch {
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.color-swatch:hover {
+    transform: scale(1.05);
+}
+
+.form-check-label {
+    cursor: pointer;
+}
+
+.glass-card {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Color picker synchronization
+    const colorInputs = document.querySelectorAll('input[type="color"]');
+    colorInputs.forEach(colorInput => {
+        colorInput.addEventListener('input', function() {
+            const textInput = document.getElementById(this.id + '_text');
+            if (textInput) {
+                textInput.value = this.value;
+            }
+        });
+    });
+    
+    // Text input to color input synchronization
+    const textInputs = document.querySelectorAll('input[type="text"][id$="_text"]');
+    textInputs.forEach(textInput => {
+        textInput.addEventListener('input', function() {
+            const colorInput = document.getElementById(this.id.replace('_text', ''));
+            if (colorInput && this.value.match(/^#[0-9A-F]{6}$/i)) {
+                colorInput.value = this.value;
+            }
+        });
+    });
+    
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const nameInput = document.getElementById('id_name');
+        if (nameInput.value.trim() === '') {
+            e.preventDefault();
+            nameInput.classList.add('is-invalid');
+            showToast('Please enter a template name', 'error');
+        } else {
+            nameInput.classList.remove('is-invalid');
+        }
+    });
+    
+    // Real-time preview updates
+    const previewElements = document.querySelectorAll('.color-swatch');
+    const colorInputs = document.querySelectorAll('input[type="color"]');
+    
+    colorInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            // Update preview elements based on color selection
+            const targetClass = this.name.replace('_', '-');
+            const previewElement = document.querySelector(`.${targetClass}-preview`);
+            if (previewElement) {
+                previewElement.style.backgroundColor = this.value;
+            }
+        });
+    });
+    
+    // Helper function for showing notifications
+    function showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toast-container') || (() => {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            container.style.zIndex = '99999';
+            document.body.appendChild(container);
+            return container;
+        })();
+        
+        const toastId = 'toast-' + Date.now();
+        const toast = document.createElement('div');
+        toast.id = toastId;
+        toast.className = `toast align-items-center text-bg-${type === 'error' ? 'danger' : type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+        
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
+    }
+});
+</script>
+{% endblock %}

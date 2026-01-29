@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Report Templates - {{ school.name }}{% endblock %}
+
+{% block page_title %}Report Templates{% endblock %}
+
+{% block page_description %}
+Manage custom report card templates for {{ school.name }}. Create, edit, and customize templates to match your school's branding and requirements.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Report Templates</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'template_create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-2"></i>Create Template
+    </a>
+    <a href="{% url 'template_import' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-upload me-2"></i>Import Template
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Templates Grid -->
+<div class="row">
+    {% for template in templates %}
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm template-card">
+            {% if template.header_logo %}
+            <div class="card-header bg-white p-3">
+                <img src="{{ template.header_logo.url }}" alt="{{ template.name }}" class="img-fluid rounded" style="max-height: 60px;">
+            </div>
+            {% else %}
+            <div class="card-header" style="background-color: {{ template.primary_color }}; color: white;">
+                <h6 class="mb-0">{{ template.name }}</h6>
+                <small>{{ template.get_template_type_display }}</small>
+            </div>
+            {% endif %}
+            
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="card-title mb-1">{{ template.name }}</h6>
+                        <span class="badge bg-secondary">{{ template.get_template_type_display }}</span>
+                        {% if template.is_default %}
+                        <span class="badge bg-primary ms-1">Default</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small">{{ template.updated_at|date:"M d, Y" }}</div>
+                    </div>
+                </div>
+                
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <div class="fw-bold">{{ template.sections.count }}</div>
+                        <small class="text-muted">Sections</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="fw-bold">{{ template.custom_fields.count }}</div>
+                        <small class="text-muted">Fields</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="fw-bold">{{ template.report_title }}</div>
+                        <small class="text-muted">Title</small>
+                    </div>
+                </div>
+                
+                <div class="template-features mb-3">
+                    <div class="row small">
+                        <div class="col-6">
+                            <i class="bi bi-person-circle me-1"></i>Student Photo
+                            <span class="badge {% if template.include_student_photo %}bg-success{% else %}bg-secondary{% endif %} ms-1">✓</span>
+                        </div>
+                        <div class="col-6">
+                            <i class="bi bi-chat-text me-1"></i>Teacher Comments
+                            <span class="badge {% if template.include_teacher_comments %}bg-success{% else %}bg-secondary{% endif %} ms-1">✓</span>
+                        </div>
+                        <div class="col-6 mt-1">
+                            <i class="bi bi-person-badge me-1"></i>Principal Signature
+                            <span class="badge {% if template.include_principal_signature %}bg-success{% else %}bg-secondary{% endif %} ms-1">✓</span>
+                        </div>
+                        <div class="col-6 mt-1">
+                            <i class="bi bi-calendar-check me-1"></i>Attendance Summary
+                            <span class="badge {% if template.include_attendance_summary %}bg-success{% else %}bg-secondary{% endif %} ms-1">✓</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="template-colors mb-3">
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Primary Color</small>
+                            <div class="color-preview" style="background-color: {{ template.primary_color }}; width: 100%; height: 20px; border-radius: 4px;"></div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Secondary Color</small>
+                            <div class="color-preview" style="background-color: {{ template.secondary_color }}; width: 100%; height: 20px; border-radius: 4px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-white border-0">
+                <div class="btn-group w-100" role="group">
+                    <a href="{% url 'template_preview' template.id %}" class="btn btn-outline-primary btn-sm" title="Preview">
+                        <i class="bi bi-eye"></i> Preview
+                    </a>
+                    <a href="{% url 'template_edit' template.id %}" class="btn btn-outline-secondary btn-sm" title="Edit">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <a href="{% url 'template_duplicate' template.id %}" class="btn btn-outline-info btn-sm" title="Duplicate">
+                        <i class="bi bi-copy"></i> Duplicate
+                    </a>
+                    {% if not template.is_default %}
+                    <a href="{% url 'template_delete' template.id %}" class="btn btn-outline-danger btn-sm" title="Delete">
+                        <i class="bi bi-trash"></i> Delete
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card border-0">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-file-earmark-text display-4 text-muted mb-3"></i>
+                <h5 class="card-title">No Templates Yet</h5>
+                <p class="card-text text-muted">Create your first report template to get started.</p>
+                <a href="{% url 'template_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-2"></i>Create Your First Template
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Template Statistics -->
+{% if templates %}
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card border-0 bg-primary text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ templates.count }}</h4>
+                <small>Total Templates</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-success text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ default_templates_count }}</h4>
+                <small>Default Templates</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-info text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ templates|length|add:0 }}</h4>
+                <small>Active Templates</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-warning text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ templates|dictsort:"updated_at"|last|date:"M d, Y"|default:"Never" }}</h4>
+                <small>Last Updated</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.template-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #e9ecef;
+}
+
+.template-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.template-features .badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.color-preview {
+    border: 1px solid #dee2e6;
+    margin-top: 4px;
+}
+
+.card-footer .btn-group .btn {
+    flex: 1;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects to template cards
+    const templateCards = document.querySelectorAll('.template-card');
+    templateCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-4px)';
+            this.style.boxShadow = '0 0.5rem 1rem rgba(0, 0, 0, 0.15)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '0 0.125rem 0.25rem rgba(0, 0, 0, 0.075)';
+        });
+    });
+    
+    // Add smooth transitions for buttons
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-1px)';
+        });
+        
+        btn.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+{% endblock %}

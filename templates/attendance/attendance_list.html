@@ -1,93 +1,311 @@
 {% extends 'base.html' %}
-{% block title %}{{ title }} - SchoolSync{% endblock %}
+{% load static %}
+
+{% block title %}Attendance - ReportCardApp{% endblock %}
+
+{% block page_title %}Attendance Management{% endblock %}
+
+{% block page_description %}
+Manage student attendance records. View, add, and track attendance for all classes and grading periods.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">Attendance</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'attendance_create' %}" class="btn btn-gradient">
+        <i class="bi bi-plus-circle me-2"></i>Add Attendance
+    </a>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-filter me-2"></i>Filter by Class
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item {% if not class_section_id %}active{% endif %}" href="{% url 'attendance_list' %}">All Classes</a></li>
+            <li><hr class="dropdown-divider"></li>
+            {% for class_section in class_sections %}
+            <li><a class="dropdown-item {% if class_section_id == class_section.id|stringformat:"s" %}active{% endif %}" href="?class={{ class_section.id }}">{{ class_section.name }} (Grade {{ class_section.grade_level }})</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    <button class="btn btn-outline-success" onclick="exportAttendanceExcel()">
+        <i class="bi bi-download me-2"></i>Export Excel
+    </button>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>{{ title }}</h2>
-                <a href="{% url 'attendance_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Mark Attendance
-                </a>
+<div class="row">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            {% if attendance_records %}
+            <div class="table-responsive">
+                <table class="table table-modern table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Student</th>
+                            <th>Class</th>
+                            <th>Status</th>
+                            <th>Period</th>
+                            <th>Notes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attendance in attendance_records %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ attendance.date|date:"M j, Y" }}</div>
+                                <small class="text-muted">{{ attendance.date|date:"l" }}</small>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if attendance.student.profile_picture %}
+                                    <img src="{{ attendance.student.profile_picture.url }}" alt="{{ attendance.student.get_full_name }}" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
+                                    {% else %}
+                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                        <i class="bi bi-person-fill text-white" style="font-size: 0.875rem;"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-bold">{{ attendance.student.get_full_name|default:attendance.student.username }}</div>
+                                        <small class="text-muted">{{ attendance.student.username }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary badge-modern">{{ attendance.class_section.name }}</span>
+                                <br>
+                                <small class="text-muted">Grade {{ attendance.class_section.grade_level }}</small>
+                            </td>
+                            <td>
+                                {% if attendance.status == 'present' %}
+                                <span class="badge bg-success badge-modern">
+                                    <i class="bi bi-check-circle me-1"></i>Present
+                                </span>
+                                {% elif attendance.status == 'absent' %}
+                                <span class="badge bg-danger badge-modern">
+                                    <i class="bi bi-x-circle me-1"></i>Absent
+                                </span>
+                                {% elif attendance.status == 'late' %}
+                                <span class="badge bg-warning badge-modern">
+                                    <i class="bi bi-clock me-1"></i>Late
+                                </span>
+                                {% elif attendance.status == 'excused' %}
+                                <span class="badge bg-info badge-modern">
+                                    <i class="bi bi-check-circle me-1"></i>Excused
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attendance.grading_period %}
+                                <span class="badge bg-secondary badge-modern">{{ attendance.grading_period.name }}</span>
+                                {% else %}
+                                <span class="text-muted">No period</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attendance.notes %}
+                                <div class="text-truncate" style="max-width: 200px;" title="{{ attendance.notes }}">
+                                    {{ attendance.notes|truncatechars:50 }}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No notes</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'attendance_update' attendance.id %}" class="btn btn-sm btn-outline-primary" title="Edit Attendance">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-danger" 
+                                       onclick="confirmDelete('{{ attendance.student.get_full_name|default:attendance.student.username }} - {{ attendance.date|date:"M j, Y" }}', '{% url 'attendance_delete' attendance.id %}')" 
+                                       title="Delete Attendance">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-
-            <!-- Date Filter -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <form method="get" class="row g-3">
-                        <div class="col-md-4">
-                            <label for="date" class="form-label">Filter by Date</label>
-                            <input type="date" name="date" id="date" class="form-control" value="{{ date_filter }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
-                            <button type="submit" class="btn btn-outline-secondary d-block">Filter</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-body">
-                    {% if attendances %}
-                    <div class="table-responsive">
-                        <table class="table table-striped" data-model="attendance">
-                            <thead>
-                                <tr>
-                                    <th>Student</th>
-                                    <th>Class Section</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Notes</th>
-                                    <th>School</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for attendance in attendances %}
-                                <tr>
-                                    <td>{{ attendance.student.get_full_name }} ({{ attendance.student.username }})</td>
-                                    <td>{{ attendance.class_section.name }}</td>
-                                    <td>{{ attendance.date }}</td>
-                                    <td>
-                                        <span class="badge bg-{% if attendance.status == 'present' %}success{% elif attendance.status == 'late' %}warning{% elif attendance.status == 'excused' %}info{% else %}danger{% endif %}">
-                                            {{ attendance.get_status_display }}
-                                        </span>
-                                    </td>
-                                    <td>{{ attendance.notes|truncatechars:30|default:"-" }}</td>
-                                    <td>{{ attendance.school.name }}</td>
-                                    <td>
-                                        <a href="{% url 'attendance_update' attendance.pk %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-edit"></i> Edit
-                                        </a>
-                                        <a href="{% url 'attendance_delete' attendance.pk %}" class="btn btn-sm btn-outline-danger">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <p class="text-muted">No attendance records found.</p>
-                        <a href="{% url 'attendance_create' %}" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Mark First Attendance
+            
+            <!-- Pagination -->
+            {% if attendance_records.has_other_pages %}
+            <nav aria-label="Attendance pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if attendance_records.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ attendance_records.previous_page_number }}{% if class_section_id %}&class={{ class_section_id }}{% endif %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
                         </a>
-                    </div>
+                    </li>
                     {% endif %}
+                    
+                    {% for num in attendance_records.paginator.page_range %}
+                    {% if num == attendance_records.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > attendance_records.number|add:'-3' and num < attendance_records.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if class_section_id %}&class={{ class_section_id }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if attendance_records.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ attendance_records.next_page_number }}{% if class_section_id %}&class={{ class_section_id }}{% endif %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <h5 class="text-muted">No attendance records found</h5>
+                <p class="text-muted">Get started by recording attendance for your students.</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="{% url 'attendance_create' %}" class="btn btn-gradient">
+                        <i class="bi bi-plus-circle me-2"></i>Record Attendance
+                    </a>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the attendance record for <strong id="delete-attendance-name"></strong>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a id="delete-confirm-btn" href="#" class="btn btn-danger">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-// Add offline indicator class to table when offline
-if (!navigator.onLine) {
-    document.querySelector('table[data-model="attendance"]').classList.add('offline-indicator');
+function confirmDelete(attendanceName, deleteUrl) {
+    document.getElementById('delete-attendance-name').textContent = attendanceName;
+    document.getElementById('delete-confirm-btn').href = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+function exportAttendanceExcel() {
+    // Show loading state
+    const exportBtn = event.target;
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Exporting...';
+    exportBtn.disabled = true;
+    
+    // Trigger export
+    window.location.href = '{% url "export_attendance_excel" %}';
+    
+    // Reset button after delay
+    setTimeout(() => {
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }, 2000);
+}
+
+// Add attendance statistics
+document.addEventListener('DOMContentLoaded', function() {
+    const totalRecords = document.querySelectorAll('tbody tr').length;
+    const presentCount = document.querySelectorAll('td:nth-child(4) .bg-success').length;
+    const absentCount = document.querySelectorAll('td:nth-child(4) .bg-danger').length;
+    const lateCount = document.querySelectorAll('td:nth-child(4) .bg-warning').length;
+    
+    if (totalRecords > 0) {
+        const attendanceRate = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
+        
+        const statsHtml = `
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${totalRecords}</h6>
+                            <small class="text-muted">Total Records</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${presentCount}</h6>
+                            <small class="text-muted">Present</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon danger">
+                            <i class="bi bi-x-circle"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${absentCount}</h6>
+                            <small class="text-muted">Absent</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${lateCount}</h6>
+                            <small class="text-muted">Late</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="stat-card">
+                        <div class="stat-icon info">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${attendanceRate}%</h6>
+                            <small class="text-muted">Attendance Rate</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.querySelector('.glass-card').insertAdjacentHTML('afterend', statsHtml);
+    }
+});
 </script>
 {% endblock %}

@@ -18,11 +18,11 @@ from rest_framework.response import Response
 import openpyxl
 
 
-from .models import School, User, ClassSection, Subject, GradingScale, StudentEnrollment, GradingPeriod, Grade, Attendance, UserApplication
+from .models import School, User, ClassSection, Subject, GradingScale, StudentEnrollment, GradingPeriod, Grade, Attendance, UserApplication, SchoolProfile, SupportTicket
 from .serializers import (
     SchoolSerializer, UserSerializer, ClassSectionSerializer,
     SubjectSerializer, GradingScaleSerializer, StudentEnrollmentSerializer, GradingPeriodSerializer,
-    GradeSerializer, AttendanceSerializer
+    GradeSerializer, AttendanceSerializer, SchoolProfileSerializer, SupportTicketSerializer
 )
 from authentication.permissions import (
     IsSuperAdmin, IsSchoolAdmin, IsSchoolMember, IsOwnerOrSchoolAdmin,
@@ -135,6 +135,43 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             # Students can view their own attendance
             return [IsStudent(), IsStudentOwner()]
         return [IsTeacherOrAdmin()]
+
+
+class SchoolProfileViewSet(viewsets.ModelViewSet):
+    queryset = SchoolProfile.objects.all()
+    serializer_class = SchoolProfileSerializer
+    permission_classes = [IsSchoolAdmin]
+
+    def get_queryset(self):
+        if self.request.user.role == 'super_admin':
+            return SchoolProfile.objects.all()
+        return SchoolProfile.objects.filter(school=self.request.school) if self.request.school else SchoolProfile.objects.none()
+
+
+class SupportTicketViewSet(viewsets.ModelViewSet):
+    queryset = SupportTicket.objects.all()
+    serializer_class = SupportTicketSerializer
+    permission_classes = [IsSchoolMember]
+
+    def get_queryset(self):
+        if self.request.user.role == 'super_admin':
+            return SupportTicket.objects.all()
+        elif self.request.user.role == 'admin':
+            return SupportTicket.objects.filter(school=self.request.school)
+        else:
+            # Regular users can only see their own tickets
+            return SupportTicket.objects.filter(created_by=self.request.user)
+
+    def get_permissions(self):
+        if self.action in ['create']:
+            # Anyone can create tickets
+            return [IsSchoolMember()]
+        elif self.action in ['list', 'retrieve']:
+            # Users can see their own tickets, admins can see school tickets
+            return [IsSchoolMember()]
+        else:
+            # Update and delete only for admins
+            return [IsSchoolAdmin()]
 
 
 @api_view(['GET'])
@@ -587,6 +624,7 @@ def school_switch(request):
 
 # Management Views - Super Admin Only
 @login_required
+@login_required
 def school_list(request):
     if request.user.role != 'super_admin':
         messages.error(request, 'Access denied. Super admin required.')
@@ -607,29 +645,38 @@ def school_create(request):
 
     from .forms import SchoolForm
     if request.method == 'POST':
-        # Debug: Check if CSRF token is present
-        csrf_token = request.POST.get('csrfmiddlewaretoken')
-        if not csrf_token:
-            messages.error(request, 'CSRF token missing. Please try again.')
-            form = SchoolForm()
+        form = SchoolForm(request.POST)
+        if form.is_valid():
+            try:
+                school = form.save()
+                messages.success(request, f'School "{school.name}" created successfully.')
+                return redirect('school_list')
+            except Exception as e:
+                # Log the error for debugging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating school: {str(e)}", exc_info=True)
+                messages.error(request, 'An error occurred while creating the school. Please try again.')
+                # Re-render form with the error
+                return render(request, 'schools/school_form.html', {
+                    'form': form,
+                    'title': 'Create School',
+                    'action': 'Create'
+                })
         else:
-            form = SchoolForm(request.POST)
-            if form.is_valid():
-                try:
-                    school = form.save()
-                    messages.success(request, f'School "{school.name}" created successfully.')
-                    return redirect('school_list')
-                except Exception as e:
-                    # Log the error for debugging
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Error creating school: {e}")
-                    messages.error(request, 'An error occurred while creating the school. Please try again.')
-            else:
-                # Form validation failed - display specific errors
-                for field, errors in form.errors.items():
-                    for error in errors:
-                        messages.error(request, f"{field.title()}: {error}")
+            # Form validation failed - display specific errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        messages.error(request, str(error))
+                    else:
+                        messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
+            # Re-render form with validation errors
+            return render(request, 'schools/school_form.html', {
+                'form': form,
+                'title': 'Create School',
+                'action': 'Create'
+            })
     else:
         form = SchoolForm()
     
@@ -651,9 +698,23 @@ def school_update(request, pk):
     if request.method == 'POST':
         form = SchoolForm(request.POST, instance=school)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'School updated successfully.')
-            return redirect('school_list')
+            try:
+                form.save()
+                messages.success(request, 'School updated successfully.')
+                return redirect('school_list')
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error updating school: {str(e)}", exc_info=True)
+                messages.error(request, 'An error occurred while updating the school. Please try again.')
+        else:
+            # Form validation failed - display specific errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        messages.error(request, str(error))
+                    else:
+                        messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
     else:
         form = SchoolForm(instance=school)
     return render(request, 'schools/school_form.html', {
@@ -711,15 +772,13 @@ def user_create(request):
 
     from .forms import UserForm
     if request.method == 'POST':
-        form = UserForm(request.POST)
-        form.request = request
+        form = UserForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'User created successfully.')
             return redirect('user_list')
     else:
-        form = UserForm()
-        form.request = request
+        form = UserForm(request=request)
     return render(request, 'users/user_form.html', {
         'form': form,
         'title': 'Create User'
@@ -741,15 +800,13 @@ def user_update(request, pk):
         return redirect('user_list')
 
     if request.method == 'POST':
-        form = UserForm(request.POST, instance=user_obj)
-        form.request = request
+        form = UserForm(request.POST, instance=user_obj, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'User updated successfully.')
             return redirect('user_list')
     else:
-        form = UserForm(instance=user_obj)
-        form.request = request
+        form = UserForm(instance=user_obj, request=request)
     return render(request, 'users/user_form.html', {
         'form': form,
         'user_obj': user_obj,
@@ -805,15 +862,13 @@ def class_section_create(request):
 
     from .forms import ClassSectionForm
     if request.method == 'POST':
-        form = ClassSectionForm(request.POST)
-        form.request = request
+        form = ClassSectionForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Class section created successfully.')
             return redirect('class_section_list')
     else:
-        form = ClassSectionForm()
-        form.request = request
+        form = ClassSectionForm(request=request)
     return render(request, 'class_sections/class_section_form.html', {
         'form': form,
         'title': 'Create Class Section'
@@ -835,15 +890,13 @@ def class_section_update(request, pk):
         return redirect('class_section_list')
 
     if request.method == 'POST':
-        form = ClassSectionForm(request.POST, instance=class_section)
-        form.request = request
+        form = ClassSectionForm(request.POST, instance=class_section, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Class section updated successfully.')
             return redirect('class_section_list')
     else:
-        form = ClassSectionForm(instance=class_section)
-        form.request = request
+        form = ClassSectionForm(instance=class_section, request=request)
     return render(request, 'class_sections/class_section_form.html', {
         'form': form,
         'class_section': class_section,
@@ -899,15 +952,13 @@ def subject_create(request):
 
     from .forms import SubjectForm
     if request.method == 'POST':
-        form = SubjectForm(request.POST)
-        form.request = request
+        form = SubjectForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Subject created successfully.')
             return redirect('subject_list')
     else:
-        form = SubjectForm()
-        form.request = request
+        form = SubjectForm(request=request)
     return render(request, 'subjects/subject_form.html', {
         'form': form,
         'title': 'Create Subject'
@@ -929,15 +980,13 @@ def subject_update(request, pk):
         return redirect('subject_list')
 
     if request.method == 'POST':
-        form = SubjectForm(request.POST, instance=subject)
-        form.request = request
+        form = SubjectForm(request.POST, instance=subject, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Subject updated successfully.')
             return redirect('subject_list')
     else:
-        form = SubjectForm(instance=subject)
-        form.request = request
+        form = SubjectForm(instance=subject, request=request)
     return render(request, 'subjects/subject_form.html', {
         'form': form,
         'subject': subject,
@@ -993,15 +1042,13 @@ def grading_scale_create(request):
 
     from .forms import GradingScaleForm
     if request.method == 'POST':
-        form = GradingScaleForm(request.POST)
-        form.request = request
+        form = GradingScaleForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Grading scale created successfully.')
             return redirect('grading_scale_list')
     else:
-        form = GradingScaleForm()
-        form.request = request
+        form = GradingScaleForm(request=request)
     return render(request, 'grading_scales/grading_scale_form.html', {
         'form': form,
         'title': 'Create Grading Scale'
@@ -1023,15 +1070,13 @@ def grading_scale_update(request, pk):
         return redirect('grading_scale_list')
 
     if request.method == 'POST':
-        form = GradingScaleForm(request.POST, instance=grading_scale)
-        form.request = request
+        form = GradingScaleForm(request.POST, instance=grading_scale, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Grading scale updated successfully.')
             return redirect('grading_scale_list')
     else:
-        form = GradingScaleForm(instance=grading_scale)
-        form.request = request
+        form = GradingScaleForm(instance=grading_scale, request=request)
     return render(request, 'grading_scales/grading_scale_form.html', {
         'form': form,
         'grading_scale': grading_scale,
@@ -1087,15 +1132,13 @@ def enrollment_create(request):
 
     from .forms import StudentEnrollmentForm
     if request.method == 'POST':
-        form = StudentEnrollmentForm(request.POST)
-        form.request = request
+        form = StudentEnrollmentForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Student enrollment created successfully.')
             return redirect('enrollment_list')
     else:
-        form = StudentEnrollmentForm()
-        form.request = request
+        form = StudentEnrollmentForm(request=request)
     return render(request, 'enrollments/enrollment_form.html', {
         'form': form,
         'title': 'Create Student Enrollment'
@@ -1117,15 +1160,13 @@ def enrollment_update(request, pk):
         return redirect('enrollment_list')
 
     if request.method == 'POST':
-        form = StudentEnrollmentForm(request.POST, instance=enrollment)
-        form.request = request
+        form = StudentEnrollmentForm(request.POST, instance=enrollment, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Student enrollment updated successfully.')
             return redirect('enrollment_list')
     else:
-        form = StudentEnrollmentForm(instance=enrollment)
-        form.request = request
+        form = StudentEnrollmentForm(instance=enrollment, request=request)
     return render(request, 'enrollments/enrollment_form.html', {
         'form': form,
         'enrollment': enrollment,
@@ -1181,15 +1222,13 @@ def grading_period_create(request):
 
     from .forms import GradingPeriodForm
     if request.method == 'POST':
-        form = GradingPeriodForm(request.POST)
-        form.request = request
+        form = GradingPeriodForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Grading period created successfully.')
             return redirect('grading_period_list')
     else:
-        form = GradingPeriodForm()
-        form.request = request
+        form = GradingPeriodForm(request=request)
     return render(request, 'grading_periods/grading_period_form.html', {
         'form': form,
         'title': 'Create Grading Period'
@@ -1211,15 +1250,13 @@ def grading_period_update(request, pk):
         return redirect('grading_period_list')
 
     if request.method == 'POST':
-        form = GradingPeriodForm(request.POST, instance=grading_period)
-        form.request = request
+        form = GradingPeriodForm(request.POST, instance=grading_period, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Grading period updated successfully.')
             return redirect('grading_period_list')
     else:
-        form = GradingPeriodForm(instance=grading_period)
-        form.request = request
+        form = GradingPeriodForm(instance=grading_period, request=request)
     return render(request, 'grading_periods/grading_period_form.html', {
         'form': form,
         'grading_period': grading_period,
@@ -1517,15 +1554,13 @@ def grade_create(request):
 
     from .forms import GradeForm
     if request.method == 'POST':
-        form = GradeForm(request.POST)
-        form.request = request
+        form = GradeForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Grade created successfully.')
             return redirect('grade_list')
     else:
-        form = GradeForm()
-        form.request = request
+        form = GradeForm(request=request)
     return render(request, 'grades/grade_form.html', {
         'form': form,
         'title': 'Create Grade'
@@ -1550,15 +1585,13 @@ def grade_update(request, pk):
         return redirect('grade_list')
 
     if request.method == 'POST':
-        form = GradeForm(request.POST, instance=grade)
-        form.request = request
+        form = GradeForm(request.POST, instance=grade, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Grade updated successfully.')
             return redirect('grade_list')
     else:
-        form = GradeForm(instance=grade)
-        form.request = request
+        form = GradeForm(instance=grade, request=request)
     return render(request, 'grades/grade_form.html', {
         'form': form,
         'grade': grade,
@@ -1625,15 +1658,13 @@ def attendance_create(request):
 
     from .forms import AttendanceForm
     if request.method == 'POST':
-        form = AttendanceForm(request.POST)
-        form.request = request
+        form = AttendanceForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Attendance record created successfully.')
             return redirect('attendance_list')
     else:
-        form = AttendanceForm()
-        form.request = request
+        form = AttendanceForm(request=request)
     return render(request, 'attendance/attendance_form.html', {
         'form': form,
         'title': 'Create Attendance Record'
@@ -1658,15 +1689,13 @@ def attendance_update(request, pk):
         return redirect('attendance_list')
 
     if request.method == 'POST':
-        form = AttendanceForm(request.POST, instance=attendance)
-        form.request = request
+        form = AttendanceForm(request.POST, instance=attendance, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Attendance record updated successfully.')
             return redirect('attendance_list')
     else:
-        form = AttendanceForm(instance=attendance)
-        form.request = request
+        form = AttendanceForm(instance=attendance, request=request)
     return render(request, 'attendance/attendance_form.html', {
         'form': form,
         'attendance': attendance,
@@ -1754,7 +1783,7 @@ def application_review(request, pk):
 
     from .forms import ApplicationReviewForm
     if request.method == 'POST':
-        form = ApplicationReviewForm(request.POST)
+        form = ApplicationReviewForm(request.POST, request=request)
         if form.is_valid():
             action = form.cleaned_data['action']
             review_notes = form.cleaned_data['review_notes']
@@ -1773,7 +1802,7 @@ def application_review(request, pk):
 
             return redirect('application_list')
     else:
-        form = ApplicationReviewForm()
+        form = ApplicationReviewForm(request=request)
 
     return render(request, 'applications/application_review.html', {
         'application': application,
@@ -1823,8 +1852,19 @@ def report_card_pdf(request, student_id):
     enrollment = StudentEnrollment.objects.filter(student=student).first()
     grades = Grade.objects.filter(student=student).select_related('subject', 'grading_period').order_by('grading_period__start_date', 'subject__name')
 
-    # Default layout
-    story.append(Paragraph(f"<b>{student.school.name}</b>", styles['Title']))
+    # Get school profile for branding
+    try:
+        school_profile = SchoolProfile.objects.get(school=student.school)
+        report_header = school_profile.report_header or f"{student.school.name}"
+        report_footer = school_profile.report_footer or "School Administration"
+        report_signature = school_profile.report_signature or "Authorized by Principal"
+    except SchoolProfile.DoesNotExist:
+        report_header = student.school.name
+        report_footer = "School Administration"
+        report_signature = "Authorized by Principal"
+
+    # Header with school branding
+    story.append(Paragraph(f"<b>{report_header}</b>", styles['Title']))
     story.append(Paragraph("<b>Report Card</b>", styles['Heading1']))
     story.append(Spacer(1, 12))
 
@@ -1864,7 +1904,9 @@ def report_card_pdf(request, student_id):
         story.append(Paragraph("No grades available.", styles['Normal']))
 
     story.append(Spacer(1, 30))
-    story.append(Paragraph("<i>School Administration</i>", styles['Italic']))
+    story.append(Paragraph(f"<i>{report_footer}</i>", styles['Italic']))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(f"<i>{report_signature}</i>", styles['Italic']))
 
     doc.build(story)
 
@@ -1919,6 +1961,17 @@ def batch_report_card_pdf(request, class_id):
     styles = getSampleStyleSheet()
     story = []
 
+    # Get school profile for branding
+    try:
+        school_profile = SchoolProfile.objects.get(school=class_section.school)
+        report_header = school_profile.report_header or f"{class_section.school.name}"
+        report_footer = school_profile.report_footer or "School Administration"
+        report_signature = school_profile.report_signature or "Authorized by Principal"
+    except SchoolProfile.DoesNotExist:
+        report_header = class_section.school.name
+        report_footer = "School Administration"
+        report_signature = "Authorized by Principal"
+
     first_student = True
     for student in students:
         if not first_student:
@@ -1928,8 +1981,8 @@ def batch_report_card_pdf(request, class_id):
         enrollment = StudentEnrollment.objects.filter(student=student, class_section=class_section).first()
         grades = Grade.objects.filter(student=student).select_related('subject', 'grading_period').order_by('grading_period__start_date', 'subject__name')
 
-        # Default layout
-        story.append(Paragraph(f"<b>{class_section.school.name}</b>", styles['Title']))
+        # Header with school branding
+        story.append(Paragraph(f"<b>{report_header}</b>", styles['Title']))
         story.append(Paragraph("<b>Report Card</b>", styles['Heading1']))
         story.append(Spacer(1, 12))
 
@@ -1968,7 +2021,9 @@ def batch_report_card_pdf(request, class_id):
             story.append(Paragraph("No grades available.", styles['Normal']))
 
         story.append(Spacer(1, 30))
-        story.append(Paragraph("<i>School Administration</i>", styles['Italic']))
+        story.append(Paragraph(f"<i>{report_footer}</i>", styles['Italic']))
+        story.append(Spacer(1, 10))
+        story.append(Paragraph(f"<i>{report_signature}</i>", styles['Italic']))
 
         first_student = False
 
@@ -2017,6 +2072,129 @@ def report_card_list(request):
         'selected_class_id': class_id,
         'title': 'Generate Report Cards'
     })
+
+
+# Analytics Dashboard
+@login_required
+def analytics_dashboard(request):
+    """Analytics dashboard showing grade distributions, attendance trends, and performance metrics"""
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    school = request.user.school if request.user.role != 'super_admin' else None
+    
+    # Check if school has analytics enabled
+    if school:
+        try:
+            school_profile = SchoolProfile.objects.get(school=school)
+            if not school_profile.enable_analytics:
+                messages.warning(request, 'Analytics is not enabled for this school.')
+                return redirect('dashboard')
+        except SchoolProfile.DoesNotExist:
+            pass
+
+    from django.db.models import Q, Count, Avg, Min, Max
+    
+    # Get grade statistics
+    grades_qs = Grade.objects.select_related('student', 'subject', 'grading_period')
+    if request.user.role == 'admin':
+        grades_qs = grades_qs.filter(school=school)
+    elif request.user.role == 'teacher':
+        grades_qs = grades_qs.filter(school=request.user.school, subject__class_sections__teacher=request.user).distinct()
+
+    # Grade distribution by letter grade
+    grade_distribution = {}
+    for grade in grades_qs:
+        letter = grade.letter_grade or 'N/A'
+        grade_distribution[letter] = grade_distribution.get(letter, 0) + 1
+
+    # Score statistics
+    score_stats = grades_qs.aggregate(
+        avg_score=Avg('score'),
+        min_score=Min('score'),
+        max_score=Max('score'),
+        total_grades=Count('id')
+    )
+
+    # Top performing students (by average score)
+    from django.db.models import Avg as AvgFunc
+    top_students = grades_qs.values('student__id', 'student__first_name', 'student__last_name', 'student__username').annotate(
+        avg_score=AvgFunc('score')
+    ).filter(avg_score__isnull=False).order_by('-avg_score')[:10]
+
+    # Performance by subject
+    subject_performance = grades_qs.values('subject__id', 'subject__name').annotate(
+        avg_score=AvgFunc('score'),
+        count=Count('id')
+    ).filter(avg_score__isnull=False).order_by('-avg_score')
+
+    # Attendance statistics
+    attendance_qs = Attendance.objects.select_related('student', 'class_section')
+    if request.user.role == 'admin':
+        attendance_qs = attendance_qs.filter(school=school)
+    elif request.user.role == 'teacher':
+        attendance_qs = attendance_qs.filter(school=request.user.school, class_section__teacher=request.user)
+
+    attendance_stats = attendance_qs.aggregate(
+        total_records=Count('id'),
+        present_count=Count('id', filter=Q(status='present')),
+        absent_count=Count('id', filter=Q(status='absent')),
+        late_count=Count('id', filter=Q(status='late')),
+        excused_count=Count('id', filter=Q(status='excused'))
+    )
+
+    # Calculate attendance percentage
+    if attendance_stats['total_records'] > 0:
+        attendance_stats['present_percentage'] = round((attendance_stats['present_count'] / attendance_stats['total_records']) * 100, 2)
+        attendance_stats['absent_percentage'] = round((attendance_stats['absent_count'] / attendance_stats['total_records']) * 100, 2)
+    else:
+        attendance_stats['present_percentage'] = 0
+        attendance_stats['absent_percentage'] = 0
+
+    # Students with low attendance (less than 80%)
+    from django.db.models import Case, When, FloatField, F
+    from django.db.models.functions import Cast
+    low_attendance_students = attendance_qs.values('student__id', 'student__first_name', 'student__last_name').annotate(
+        total=Count('id'),
+        present=Count('id', filter=Q(status='present'))
+    ).annotate(
+        attendance_pct=Case(
+            When(total=0, then=0),
+            default=Cast(F('present') * 100.0 / F('total'), output_field=FloatField())
+        )
+    ).filter(attendance_pct__lt=80).order_by('attendance_pct')[:10]
+
+    # Grading periods for filtering
+    grading_periods = GradingPeriod.objects.filter(school=school) if school else GradingPeriod.objects.all()
+    if request.user.role == 'teacher':
+        # Get grading periods that have grades from this teacher's subjects
+        teacher_subjects = Subject.objects.filter(class_sections__teacher=request.user)
+        grading_periods = GradingPeriod.objects.filter(
+            grades__subject__in=teacher_subjects
+        ).distinct()
+
+    # Filter by grading period if specified
+    selected_period_id = request.GET.get('grading_period')
+    if selected_period_id:
+        grades_qs = grades_qs.filter(grading_period_id=selected_period_id)
+        attendance_qs = attendance_qs.filter(date__gte=GradingPeriod.objects.get(id=selected_period_id).start_date,
+                                             date__lte=GradingPeriod.objects.get(id=selected_period_id).end_date)
+
+    context = {
+        'grade_distribution': grade_distribution,
+        'score_stats': score_stats,
+        'top_students': top_students,
+        'subject_performance': subject_performance,
+        'attendance_stats': attendance_stats,
+        'low_attendance_students': low_attendance_students,
+        'grading_periods': grading_periods,
+        'selected_period_id': selected_period_id,
+        'school': school,
+        'title': 'Analytics Dashboard'
+    }
+
+    return render(request, 'analytics/dashboard.html', context)
 
 
 
@@ -2217,3 +2395,213 @@ def export_users_csv(request):
         ])
 
     return response
+
+
+# School Profile Management Views (White-Label Features)
+@login_required
+def school_profile_view(request):
+    """View and edit school branding and white-label settings"""
+    if request.user.role not in ['super_admin', 'admin']:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
+
+    school = request.user.school if request.user.role == 'admin' else None
+    
+    # Get or create school profile
+    school_profile, created = SchoolProfile.objects.get_or_create(
+        school=request.user.school,
+        defaults={
+            'primary_color': '#667eea',
+            'secondary_color': '#764ba2',
+            'accent_color': '#28a745'
+        }
+    )
+
+    if request.method == 'POST':
+        from .forms import SchoolProfileForm
+        form = SchoolProfileForm(request.POST, request.FILES, instance=school_profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'School profile updated successfully.')
+            return redirect('school_profile')
+    else:
+        form = SchoolProfileForm(instance=school_profile)
+
+    return render(request, 'schools/school_profile.html', {
+        'form': form,
+        'school_profile': school_profile,
+        'school': request.user.school,
+        'title': 'School Branding & Settings'
+    })
+
+
+# Support Ticket System Views
+@login_required
+def support_ticket_list(request):
+    """List support tickets for the user"""
+    tickets = SupportTicket.objects.filter(created_by=request.user).order_by('-created_at')
+    
+    # Admins and super admins can see all tickets for their school
+    if request.user.role in ['admin', 'super_admin']:
+        if request.user.role == 'super_admin':
+            tickets = SupportTicket.objects.all().order_by('-created_at')
+        else:
+            tickets = SupportTicket.objects.filter(school=request.user.school).order_by('-created_at')
+
+    return render(request, 'support/ticket_list.html', {
+        'tickets': tickets,
+        'title': 'Support Tickets'
+    })
+
+
+@login_required
+def support_ticket_create(request):
+    """Create a new support ticket"""
+    if request.method == 'POST':
+        from .forms import SupportTicketForm
+        form = SupportTicketForm(request.POST, request=request)
+        if form.is_valid():
+            ticket = form.save(commit=False)
+            ticket.created_by = request.user
+            ticket.school = request.user.school
+            ticket.save()
+            messages.success(request, 'Support ticket created successfully. We will get back to you soon.')
+            return redirect('support_ticket_list')
+    else:
+        form = SupportTicketForm(request=request)
+
+    return render(request, 'support/ticket_create.html', {
+        'form': form,
+        'title': 'Create Support Ticket'
+    })
+
+
+@login_required
+def support_ticket_detail(request, pk):
+    """View support ticket details"""
+    ticket = get_object_or_404(SupportTicket, pk=pk)
+    
+    # Check permissions
+    if request.user.role not in ['super_admin', 'admin']:
+        # Regular users can only see their own tickets
+        if ticket.created_by != request.user:
+            messages.error(request, 'Access denied.')
+            return redirect('support_ticket_list')
+    else:
+        # Admins can see tickets for their school
+        if request.user.role == 'admin' and ticket.school != request.user.school:
+            messages.error(request, 'Access denied.')
+            return redirect('support_ticket_list')
+
+    return render(request, 'support/ticket_detail.html', {
+        'ticket': ticket,
+        'title': f'Ticket: {ticket.title}'
+    })
+
+
+@login_required
+def support_dashboard(request):
+    """Admin dashboard for managing support tickets"""
+    if request.user.role not in ['super_admin', 'admin']:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
+
+    # Get tickets for the school or all tickets for super admin
+    if request.user.role == 'super_admin':
+        tickets = SupportTicket.objects.all()
+    else:
+        tickets = SupportTicket.objects.filter(school=request.user.school)
+
+    # Filter by status if specified
+    status_filter = request.GET.get('status')
+    if status_filter:
+        tickets = tickets.filter(status=status_filter)
+
+    # Filter by priority if specified
+    priority_filter = request.GET.get('priority')
+    if priority_filter:
+        tickets = tickets.filter(priority=priority_filter)
+
+    # Get statistics
+    total_tickets = tickets.count()
+    open_tickets = tickets.filter(status='open').count()
+    in_progress_tickets = tickets.filter(status='in_progress').count()
+    resolved_tickets = tickets.filter(status='resolved').count()
+
+    return render(request, 'support/dashboard.html', {
+        'tickets': tickets,
+        'total_tickets': total_tickets,
+        'open_tickets': open_tickets,
+        'in_progress_tickets': in_progress_tickets,
+        'resolved_tickets': resolved_tickets,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'title': 'Support Dashboard'
+    })
+
+
+@login_required
+def support_ticket_update(request, pk):
+    """Update support ticket (for admins)"""
+    if request.user.role not in ['super_admin', 'admin']:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('support_ticket_list')
+
+    ticket = get_object_or_404(SupportTicket, pk=pk)
+    
+    # Check permissions
+    if request.user.role == 'admin' and ticket.school != request.user.school:
+        messages.error(request, 'Access denied.')
+        return redirect('support_ticket_list')
+
+    if request.method == 'POST':
+        from .forms import SupportTicketAdminForm
+        form = SupportTicketAdminForm(request.POST, instance=ticket)
+        if form.is_valid():
+            ticket = form.save()
+            messages.success(request, 'Ticket updated successfully.')
+            return redirect('support_ticket_detail', pk=ticket.pk)
+    else:
+        form = SupportTicketAdminForm(instance=ticket)
+
+    return render(request, 'support/ticket_update.html', {
+        'form': form,
+        'ticket': ticket,
+        'title': f'Update Ticket: {ticket.title}'
+    })
+
+
+@login_required
+def support_ticket_assign(request, pk):
+    """Assign ticket to staff member (for admins)"""
+    if request.user.role not in ['super_admin', 'admin']:
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('support_ticket_list')
+
+    ticket = get_object_or_404(SupportTicket, pk=pk)
+    
+    # Check permissions
+    if request.user.role == 'admin' and ticket.school != request.user.school:
+        messages.error(request, 'Access denied.')
+        return redirect('support_ticket_list')
+
+    if request.method == 'POST':
+        assigned_to_id = request.POST.get('assigned_to')
+        if assigned_to_id:
+            try:
+                assigned_user = User.objects.get(id=assigned_to_id, role__in=['admin', 'super_admin'])
+                ticket.assigned_to = assigned_user
+                ticket.save()
+                messages.success(request, f'Ticket assigned to {assigned_user.get_full_name()}.')
+            except User.DoesNotExist:
+                messages.error(request, 'Invalid user selected.')
+        return redirect('support_ticket_detail', pk=ticket.pk)
+
+    # Get available staff members
+    staff_members = User.objects.filter(role__in=['admin', 'super_admin']).order_by('last_name', 'first_name')
+    
+    return render(request, 'support/ticket_assign.html', {
+        'ticket': ticket,
+        'staff_members': staff_members,
+        'title': f'Assign Ticket: {ticket.title}'
+    })

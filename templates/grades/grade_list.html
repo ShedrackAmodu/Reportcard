@@ -1,102 +1,324 @@
 {% extends 'base.html' %}
-{% block title %}{{ title }} - SchoolSync{% endblock %}
+{% load static %}
+
+{% block title %}Manage Grades - ReportCardApp{% endblock %}
+
+{% block page_title %}Grade Management{% endblock %}
+
+{% block page_description %}
+Manage student grades across all subjects and grading periods. View, edit, and analyze academic performance.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">Grades</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'grade_bulk_entry' %}" class="btn btn-gradient">
+        <i class="bi bi-table me-2"></i>Bulk Grade Entry
+    </a>
+    <a href="{% url 'grade_import' %}" class="btn btn-outline-primary">
+        <i class="bi bi-upload me-2"></i>Import Grades
+    </a>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-filter me-2"></i>Filter by Period
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item {% if not grading_period_id %}active{% endif %}" href="{% url 'grade_list' %}">All Periods</a></li>
+            <li><hr class="dropdown-divider"></li>
+            {% for period in grading_periods %}
+            <li><a class="dropdown-item {% if grading_period_id == period.id|stringformat:"s" %}active{% endif %}" href="?grading_period={{ period.id }}">{{ period.name }} ({{ period.start_date|date:"M j" }} - {{ period.end_date|date:"M j" }})</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    <button class="btn btn-outline-success" onclick="exportGradesExcel()">
+        <i class="bi bi-download me-2"></i>Export Excel
+    </button>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>{{ title }}</h2>
-                <a href="{% url 'grade_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Add Grade
-                </a>
+<div class="row">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            {% if grades %}
+            <div class="table-responsive">
+                <table class="table table-modern table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Subject</th>
+                            <th>Grading Period</th>
+                            <th>Score</th>
+                            <th>Grade</th>
+                            <th>Comments</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grade in grades %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if grade.student.profile_picture %}
+                                    <img src="{{ grade.student.profile_picture.url }}" alt="{{ grade.student.get_full_name }}" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
+                                    {% else %}
+                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                        <i class="bi bi-person-fill text-white" style="font-size: 0.875rem;"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-bold">{{ grade.student.get_full_name|default:grade.student.username }}</div>
+                                        <small class="text-muted">{{ grade.student.username }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-bold">{{ grade.subject.name }}</div>
+                                <small class="text-muted">{{ grade.subject.code }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-info badge-modern">{{ grade.grading_period.name }}</span>
+                                <br>
+                                <small class="text-muted">{{ grade.grading_period.start_date|date:"M j" }} - {{ grade.grading_period.end_date|date:"M j" }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary badge-modern">{{ grade.score|floatformat:1 }}%</span>
+                            </td>
+                            <td>
+                                {% if grade.letter_grade %}
+                                <span class="badge bg-{{ grade.get_letter_grade_color }} badge-modern">{{ grade.letter_grade }}</span>
+                                {% else %}
+                                <span class="text-muted">No grade</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if grade.comments %}
+                                <div class="text-truncate" style="max-width: 200px;" title="{{ grade.comments }}">
+                                    {{ grade.comments|truncatechars:50 }}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No comments</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'grade_update' grade.id %}" class="btn btn-sm btn-outline-primary" title="Edit Grade">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-danger" 
+                                       onclick="confirmDelete('{{ grade.student.get_full_name|default:grade.student.username }} - {{ grade.subject.name }}', '{% url 'grade_delete' grade.id %}')" 
+                                       title="Delete Grade">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-
-            <!-- Grading Period Filter -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <form method="get" class="row g-3">
-                        <div class="col-md-4">
-                            <label for="grading_period" class="form-label">Filter by Grading Period</label>
-                            <select name="grading_period" id="grading_period" class="form-select">
-                                <option value="">All Grading Periods</option>
-                                {% for period in grading_periods %}
-                                <option value="{{ period.id }}" {% if grading_period_id == period.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ period.name }} ({{ period.start_date }} - {{ period.end_date }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
-                            <button type="submit" class="btn btn-outline-secondary d-block">Filter</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-body">
-                    {% if grades %}
-                    <div class="table-responsive">
-                        <table class="table table-striped" data-model="grades">
-                            <thead>
-                                <tr>
-                                    <th>Student</th>
-                                    <th>Subject</th>
-                                    <th>Grading Period</th>
-                                    <th>Score</th>
-                                    <th>Letter Grade</th>
-                                    <th>Comments</th>
-                                    <th>School</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for grade in grades %}
-                                <tr>
-                                    <td>{{ grade.student.get_full_name }} ({{ grade.student.username }})</td>
-                                    <td>{{ grade.subject.name }}</td>
-                                    <td>{{ grade.grading_period.name }}</td>
-                                    <td>{{ grade.score|default:"-" }}</td>
-                                    <td>
-                                        <span class="badge bg-{% if grade.letter_grade == 'A' %}success{% elif grade.letter_grade == 'B' %}primary{% elif grade.letter_grade == 'C' %}warning{% elif grade.letter_grade == 'D' %}danger{% else %}secondary{% endif %}">
-                                            {{ grade.letter_grade|default:"-" }}
-                                        </span>
-                                    </td>
-                                    <td>{{ grade.comments|truncatechars:30|default:"-" }}</td>
-                                    <td>{{ grade.school.name }}</td>
-                                    <td>
-                                        <a href="{% url 'grade_update' grade.pk %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-edit"></i> Edit
-                                        </a>
-                                        <a href="{% url 'grade_delete' grade.pk %}" class="btn btn-sm btn-outline-danger">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <p class="text-muted">No grades found.</p>
-                        <a href="{% url 'grade_create' %}" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Create First Grade
+            
+            <!-- Pagination -->
+            {% if grades.has_other_pages %}
+            <nav aria-label="Grades pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if grades.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ grades.previous_page_number }}{% if grading_period_id %}&grading_period={{ grading_period_id }}{% endif %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
                         </a>
-                    </div>
+                    </li>
                     {% endif %}
+                    
+                    {% for num in grades.paginator.page_range %}
+                    {% if num == grades.number %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > grades.number|add:'-3' and num < grades.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if grading_period_id %}&grading_period={{ grading_period_id }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if grades.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ grades.next_page_number }}{% if grading_period_id %}&grading_period={{ grading_period_id }}{% endif %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-journal-text"></i>
+                </div>
+                <h5 class="text-muted">No grades found</h5>
+                <p class="text-muted">Get started by entering grades for your students.</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="{% url 'grade_bulk_entry' %}" class="btn btn-gradient">
+                        <i class="bi bi-table me-2"></i>Bulk Entry
+                    </a>
+                    <a href="{% url 'grade_create' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-circle me-2"></i>Add Grade
+                    </a>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the grade for <strong id="delete-grade-name"></strong>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a id="delete-confirm-btn" href="#" class="btn btn-danger">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-// Add offline indicator class to table when offline
-if (!navigator.onLine) {
-    document.querySelector('table[data-model="grades"]').classList.add('offline-indicator');
+function confirmDelete(gradeName, deleteUrl) {
+    document.getElementById('delete-grade-name').textContent = gradeName;
+    document.getElementById('delete-confirm-btn').href = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function exportGradesExcel() {
+    // Show loading state
+    const exportBtn = event.target;
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Exporting...';
+    exportBtn.disabled = true;
+    
+    // Trigger export
+    window.location.href = '{% url "export_grades_excel" %}';
+    
+    // Reset button after delay
+    setTimeout(() => {
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }, 2000);
+}
+
+// Add grade statistics
+document.addEventListener('DOMContentLoaded', function() {
+    const totalGrades = document.querySelectorAll('tbody tr').length;
+    const avgScore = calculateAverageScore();
+    const gradeDistribution = calculateGradeDistribution();
+    
+    if (totalGrades > 0) {
+        const statsHtml = `
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-journal-text"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${totalGrades}</h6>
+                            <small class="text-muted">Total Grades</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${avgScore}%</h6>
+                            <small class="text-muted">Average Score</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="bi bi-award"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${gradeDistribution.A}</h6>
+                            <small class="text-muted">Grade A's</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon info">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">${getUniqueStudentsCount()}</h6>
+                            <small class="text-muted">Students</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.querySelector('.glass-card').insertAdjacentHTML('afterend', statsHtml);
+    }
+});
+
+function calculateAverageScore() {
+    const scoreElements = document.querySelectorAll('td:nth-child(5) .badge');
+    let total = 0;
+    let count = 0;
+    
+    scoreElements.forEach(element => {
+        const scoreText = element.textContent.replace('%', '');
+        const score = parseFloat(scoreText);
+        if (!isNaN(score)) {
+            total += score;
+            count++;
+        }
+    });
+    
+    return count > 0 ? (total / count).toFixed(1) : '0';
+}
+
+function calculateGradeDistribution() {
+    const gradeElements = document.querySelectorAll('td:nth-child(6) .badge');
+    const distribution = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+    
+    gradeElements.forEach(element => {
+        const grade = element.textContent.trim();
+        if (distribution.hasOwnProperty(grade)) {
+            distribution[grade]++;
+        }
+    });
+    
+    return distribution;
+}
+
+function getUniqueStudentsCount() {
+    const studentNames = new Set();
+    document.querySelectorAll('td:nth-child(1) .fw-bold').forEach(element => {
+        studentNames.add(element.textContent.trim());
+    });
+    return studentNames.size;
 }
 </script>
 {% endblock %}

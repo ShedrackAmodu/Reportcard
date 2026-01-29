@@ -1,42 +1,235 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block title %}Login - ReportCardApp{% endblock %}
+
+{% block page_title %}Welcome Back{% endblock %}
+
+{% block page_description %}
+Sign in to your ReportCardApp account to access your dashboard and manage your school's academic records.
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title text-center">Login to ReportCardApp</h3>
+    <div class="col-lg-5 col-md-6">
+        <div class="glass-card p-4">
+            <div class="text-center mb-4">
+                <div class="bg-gradient rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <i class="bi bi-box-arrow-in-right text-white" style="font-size: 2rem;"></i>
+                </div>
+                <h2 class="fw-bold">Sign In</h2>
+                <p class="text-muted">Access your ReportCardApp dashboard</p>
             </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    {% if schools %}
-                    <div class="mb-3">
-                        <label for="school" class="form-label">Select School</label>
-                        <select class="form-select" id="school" name="school">
-                            <option value="">Choose your school...</option>
-                            {% for school in schools %}
-                            <option value="{{ school.id }}">{{ school.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">Super admins can leave this blank to access all schools.</div>
-                    </div>
+
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-modern alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    {% if message.tags == 'success' %}
+                    <i class="bi bi-check-circle-fill me-2 fs-5 text-success"></i>
+                    {% elif message.tags == 'error' or message.tags == 'danger' %}
+                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
+                    {% elif message.tags == 'warning' %}
+                    <i class="bi bi-exclamation-circle-fill me-2 fs-5 text-warning"></i>
+                    {% elif message.tags == 'info' %}
+                    <i class="bi bi-info-circle-fill me-2 fs-5 text-info"></i>
                     {% endif %}
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Login</button>
+                    <div>{{ message }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="{{ form.username.id_for_label }}" class="form-label fw-bold">
+                        <i class="bi bi-person me-2"></i>Username
+                    </label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                    <div class="text-danger small">{{ form.username.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.password.id_for_label }}" class="form-label fw-bold">
+                        <i class="bi bi-lock me-2"></i>Password
+                    </label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                    <div class="text-danger small">{{ form.password.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                {% if form.school %}
+                <div class="mb-3">
+                    <label for="{{ form.school.id_for_label }}" class="form-label fw-bold">
+                        <i class="bi bi-building me-2"></i>School
+                    </label>
+                    {{ form.school }}
+                    {% if form.school.errors %}
+                    <div class="text-danger small">{{ form.school.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-text">Select your school (optional for super admins)</div>
+                </div>
+                {% endif %}
+
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-gradient btn-lg">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                    </button>
+                </div>
+
+                <div class="text-center">
+                    <p class="text-muted small">
+                        Don't have an account? 
+                        <a href="{% url 'auth:register' %}" class="text-decoration-none fw-bold">Sign up here</a>
+                    </p>
+                    <p class="text-muted small">
+                        <a href="{% url 'auth:password_reset' %}" class="text-decoration-none">Forgot your password?</a>
+                    </p>
+                </div>
+            </form>
+        </div>
+
+        <!-- Security Features -->
+        <div class="glass-card p-4 mt-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-shield-check me-2"></i>Security Features
+            </h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-shield-lock text-success me-2"></i>
+                        <span class="text-muted small">Secure Authentication</span>
                     </div>
-                </form>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-eye-slash text-info me-2"></i>
+                        <span class="text-muted small">Password Protection</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-globe text-warning me-2"></i>
+                        <span class="text-muted small">Multi-Tenant Support</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-phone text-primary me-2"></i>
+                        <span class="text-muted small">Mobile Friendly</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Demo Credentials Modal -->
+<div class="modal fade" id="demoModal" tabindex="-1" aria-labelledby="demoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="demoModalLabel">Demo Credentials</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    <strong>Try these demo accounts:</strong>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title fw-bold">Super Admin</h6>
+                                <p class="card-text small">
+                                    <strong>Username:</strong> admin<br>
+                                    <strong>Password:</strong> admin123
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title fw-bold">Teacher</h6>
+                                <p class="card-text small">
+                                    <strong>Username:</strong> teacher<br>
+                                    <strong>Password:</strong> teacher123
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add form validation feedback
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+                field.classList.add('is-valid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            showToast('Please fill in all required fields.', 'warning');
+        }
+    });
+
+    // Real-time validation
+    const inputs = form.querySelectorAll('input[required]');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            }
+        });
+    });
+
+    // Auto-focus first field
+    const firstField = form.querySelector('input[type="text"], input[type="email"]');
+    if (firstField) {
+        firstField.focus();
+    }
+});
+
+// Add some animation to the login card
+document.addEventListener('DOMContentLoaded', function() {
+    const loginCard = document.querySelector('.glass-card');
+    if (loginCard) {
+        loginCard.style.opacity = '0';
+        loginCard.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            loginCard.style.transition = 'all 0.5s ease-out';
+            loginCard.style.opacity = '1';
+            loginCard.style.transform = 'translateY(0)';
+        }, 100);
+    }
+});
+</script>
 {% endblock %}

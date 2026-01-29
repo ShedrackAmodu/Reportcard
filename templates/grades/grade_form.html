@@ -1,122 +1,339 @@
 {% extends 'base.html' %}
-{% block title %}{{ title }} - SchoolSync{% endblock %}
+{% load static %}
+
+{% block title %}{% if grade %}Edit Grade - {{ grade.student.get_full_name }}{% else %}Create New Grade{% endif %} - ReportCardApp{% endblock %}
+
+{% block page_title %}{% if grade %}Edit Grade{% else %}Create Grade{% endif %}{% endblock %}
+
+{% block page_description %}
+{% if grade %}Update grade information for {{ grade.student.get_full_name }} in {{ grade.subject.name }}.{% else %}Create a new grade entry for a student.{% endif %}
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'grade_list' %}">Grades</a></li>
+<li class="breadcrumb-item active">{% if grade %}Edit{% else %}Create{% endif %}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'grade_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Back to List
+    </a>
+    {% if grade %}
+    <a href="#" class="btn btn-outline-danger" onclick="confirmDelete('{{ grade.student.get_full_name|default:grade.student.username }} - {{ grade.subject.name }}', '{% url 'grade_delete' grade.id %}')">
+        <i class="bi bi-trash me-2"></i>Delete Grade
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>{{ title }}</h2>
-                <a href="{% url 'grade_list' %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Grades
-                </a>
-            </div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="glass-card p-4">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger alert-modern">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
 
-            <div class="row justify-content-center">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-body">
-                            <form method="post" data-offline="true">
-                                {% csrf_token %}
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="{{ form.student.id_for_label }}" class="form-label">Student *</label>
-                                        {{ form.student }}
-                                        {% if form.student.errors %}
-                                            <div class="text-danger">{{ form.student.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="{{ form.subject.id_for_label }}" class="form-label">Subject *</label>
-                                        {{ form.subject }}
-                                        {% if form.subject.errors %}
-                                            <div class="text-danger">{{ form.subject.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="{{ form.grading_period.id_for_label }}" class="form-label">Grading Period *</label>
-                                        {{ form.grading_period }}
-                                        {% if form.grading_period.errors %}
-                                            <div class="text-danger">{{ form.grading_period.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="{{ form.score.id_for_label }}" class="form-label">Score (0-100)</label>
-                                        {{ form.score }}
-                                        {% if form.score.errors %}
-                                            <div class="text-danger">{{ form.score.errors }}</div>
-                                        {% endif %}
-                                        <div class="form-text">Numeric score out of 100</div>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="{{ form.letter_grade.id_for_label }}" class="form-label">Letter Grade</label>
-                                        {{ form.letter_grade }}
-                                        {% if form.letter_grade.errors %}
-                                            <div class="text-danger">{{ form.letter_grade.errors }}</div>
-                                        {% endif %}
-                                        <div class="form-text">Will be auto-calculated if score is provided</div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="{{ form.school.id_for_label }}" class="form-label">School *</label>
-                                        {{ form.school }}
-                                        {% if form.school.errors %}
-                                            <div class="text-danger">{{ form.school.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="{{ form.comments.id_for_label }}" class="form-label">Comments</label>
-                                    {{ form.comments }}
-                                    {% if form.comments.errors %}
-                                        <div class="text-danger">{{ form.comments.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary">
-                                        {% if grade %}Update Grade{% else %}Create Grade{% endif %}
-                                    </button>
-                                </div>
-                            </form>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.student.id_for_label }}" class="form-label fw-bold">
+                            <i class="bi bi-person-fill me-2"></i>Student
+                        </label>
+                        {{ form.student }}
+                        {% if form.student.errors %}
+                        <div class="text-danger small">{{ form.student.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Select the student who received this grade.</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.subject.id_for_label }}" class="form-label fw-bold">
+                            <i class="bi bi-book me-2"></i>Subject
+                        </label>
+                        {{ form.subject }}
+                        {% if form.subject.errors %}
+                        <div class="text-danger small">{{ form.subject.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Select the subject for this grade.</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.grading_period.id_for_label }}" class="form-label fw-bold">
+                            <i class="bi bi-calendar-range me-2"></i>Grading Period
+                        </label>
+                        {{ form.grading_period }}
+                        {% if form.grading_period.errors %}
+                        <div class="text-danger small">{{ form.grading_period.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Select the grading period for this grade.</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.score.id_for_label }}" class="form-label fw-bold">
+                            <i class="bi bi-graph-up me-2"></i>Score
+                        </label>
+                        {{ form.score }}
+                        {% if form.score.errors %}
+                        <div class="text-danger small">{{ form.score.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Enter the numerical score (0-100).</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.letter_grade.id_for_label }}" class="form-label fw-bold">
+                            <i class="bi bi-award me-2"></i>Letter Grade
+                        </label>
+                        {{ form.letter_grade }}
+                        {% if form.letter_grade.errors %}
+                        <div class="text-danger small">{{ form.letter_grade.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">The letter grade will be auto-calculated based on the score.</div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.auto_calculate.id_for_label }}" class="form-label fw-bold">
+                            <i class="bi bi-gear me-2"></i>Auto-Calculate
+                        </label>
+                        <div class="form-check">
+                            {{ form.auto_calculate }}
+                            <label class="form-check-label" for="{{ form.auto_calculate.id_for_label }}">
+                                Auto-calculate letter grade from score
+                            </label>
+                        </div>
+                        {% if form.auto_calculate.errors %}
+                        <div class="text-danger small">{{ form.auto_calculate.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Uncheck to manually set letter grade (override auto-calculation).</div>
+                    </div>
+
+                    <div class="col-12 mb-3">
+                        <label for="{{ form.comments.id_for_label }}" class="form-label fw-bold">
+                            <i class="bi bi-chat-dots me-2"></i>Comments
+                        </label>
+                        {{ form.comments }}
+                        {% if form.comments.errors %}
+                        <div class="text-danger small">{{ form.comments.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Optional comments about the student's performance.</div>
+                    </div>
+                </div>
+
+                <!-- Submit Section -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{% url 'grade_list' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left me-2"></i>Cancel
+                                </a>
+                            </div>
+                            <div class="d-flex gap-2">
+                                {% if grade %}
+                                <button type="button" class="btn btn-outline-warning" onclick="resetForm()">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Reset
+                                </button>
+                                {% endif %}
+                                <button type="submit" class="btn btn-gradient">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    {% if grade %}Update Grade{% else %}Create Grade{% endif %}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </form>
+        </div>
+
+        <!-- Grade Information Card -->
+        {% if grade %}
+        <div class="glass-card p-4 mt-4">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-info-circle me-2"></i>Grade Details
+            </h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <strong>Student:</strong>
+                        <div class="d-flex align-items-center">
+                            {% if grade.student.profile_picture %}
+                            <img src="{{ grade.student.profile_picture.url }}" alt="{{ grade.student.get_full_name }}" class="rounded-circle me-2" width="24" height="24" style="object-fit: cover;">
+                            {% else %}
+                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px;">
+                                <i class="bi bi-person-fill text-white" style="font-size: 0.75rem;"></i>
+                            </div>
+                            {% endif %}
+                            <span class="text-muted">{{ grade.student.get_full_name|default:grade.student.username }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Subject:</strong>
+                        <span class="badge bg-primary badge-modern">{{ grade.subject.name }} ({{ grade.subject.code }})</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Score:</strong>
+                        <span class="badge bg-info badge-modern">{{ grade.score|floatformat:1 }}%</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <strong>Grading Period:</strong>
+                        <span class="badge bg-secondary badge-modern">{{ grade.grading_period.name }}</span>
+                        <br>
+                        <small class="text-muted">{{ grade.grading_period.start_date|date:"M j, Y" }} - {{ grade.grading_period.end_date|date:"M j, Y" }}</small>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong>Letter Grade:</strong>
+                        {% if grade.letter_grade %}
+                        <span class="badge bg-{{ grade.get_letter_grade_color }} badge-modern">{{ grade.letter_grade }}</span>
+                        {% else %}
+                        <span class="text-muted">No grade assigned</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-2">
+                        <strong>Auto-Calculation:</strong>
+                        {% if grade.is_override %}
+                        <span class="badge bg-warning badge-modern">Manual Override</span>
+                        {% else %}
+                        <span class="badge bg-success badge-modern">Auto-Calculated</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            {% if grade.comments %}
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="mb-2">
+                        <strong>Comments:</strong>
+                        <p class="text-muted">{{ grade.comments }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the grade for <strong id="delete-grade-name"></strong>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a id="delete-confirm-btn" href="#" class="btn btn-danger">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-// Auto-calculate letter grade based on score and grading scale
-document.getElementById('{{ form.score.id_for_label }}').addEventListener('input', function() {
-    const score = parseFloat(this.value);
-    const letterGradeField = document.getElementById('{{ form.letter_grade.id_for_label }}');
+function confirmDelete(gradeName, deleteUrl) {
+    document.getElementById('delete-grade-name').textContent = gradeName;
+    document.getElementById('delete-confirm-btn').href = deleteUrl;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
 
-    if (!isNaN(score) && score >= 0 && score <= 100) {
-        // Get grading scale data from the school (assuming first grading scale)
-        {% if form.school.value %}
-            // This would need to be enhanced to fetch grading scale data dynamically
-            // For now, using basic calculation
-            let letterGrade = 'F';
-            if (score >= 90) letterGrade = 'A';
-            else if (score >= 80) letterGrade = 'B';
-            else if (score >= 70) letterGrade = 'C';
-            else if (score >= 60) letterGrade = 'D';
+function resetForm() {
+    document.querySelector('form').reset();
+}
 
-            letterGradeField.value = letterGrade;
-        {% endif %}
+// Add auto-calculation logic
+document.addEventListener('DOMContentLoaded', function() {
+    const scoreInput = document.getElementById('id_score');
+    const letterGradeInput = document.getElementById('id_letter_grade');
+    const autoCalculateCheckbox = document.getElementById('id_auto_calculate');
+    
+    if (scoreInput && letterGradeInput && autoCalculateCheckbox) {
+        scoreInput.addEventListener('input', function() {
+            if (autoCalculateCheckbox.checked) {
+                calculateLetterGrade();
+            }
+        });
+        
+        autoCalculateCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                calculateLetterGrade();
+                letterGradeInput.disabled = true;
+            } else {
+                letterGradeInput.disabled = false;
+            }
+        });
+        
+        // Initial state
+        if (autoCalculateCheckbox.checked) {
+            letterGradeInput.disabled = true;
+        }
+    }
+    
+    function calculateLetterGrade() {
+        const score = parseFloat(scoreInput.value);
+        if (!isNaN(score)) {
+            if (score >= 90) letterGradeInput.value = 'A';
+            else if (score >= 80) letterGradeInput.value = 'B';
+            else if (score >= 70) letterGradeInput.value = 'C';
+            else if (score >= 60) letterGradeInput.value = 'D';
+            else letterGradeInput.value = 'F';
+        }
     }
 });
 
-// Offline form handling
-document.querySelector('form[data-offline="true"]').addEventListener('submit', function(e) {
-    if (!navigator.onLine) {
-        // Form will be handled by the PWA's offline submission logic
-        console.log('Grade form submitted offline');
-    }
+// Add form validation feedback
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+                field.classList.add('is-valid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            showToast('Please fill in all required fields.', 'warning');
+        }
+    });
+
+    // Real-time validation
+    const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

@@ -1,0 +1,835 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Analytics Dashboard - {{ school.name }}{% endblock %}
+
+{% block page_title %}Analytics Dashboard{% endblock %}
+
+{% block page_description %}
+Comprehensive analytics and performance tracking for {{ school.name }}. View grade distributions, attendance trends, and student performance insights.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Analytics</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-bar-chart me-2"></i>Analytics Views
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'analytics_dashboard' %}">
+                <i class="bi bi-speedometer2 me-2"></i>School Overview
+            </a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#" onclick="showAnalyticsTab('grade-distribution')">
+                <i class="bi bi-graph-up me-2"></i>Grade Distribution
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="showAnalyticsTab('attendance-trends')">
+                <i class="bi bi-calendar-check me-2"></i>Attendance Trends
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="showAnalyticsTab('performance-comparison')">
+                <i class="bi bi-activity me-2"></i>Performance Comparison
+            </a></li>
+        </ul>
+    </div>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-funnel me-2"></i>Filter Data
+        </button>
+        <ul class="dropdown-menu p-3" style="width: 300px;">
+            <li>
+                <label class="form-label fw-bold">Date Range</label>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <input type="date" id="filter-start-date" class="form-control form-control-sm" value="{{ date_range.start|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-6">
+                        <input type="date" id="filter-end-date" class="form-control form-control-sm" value="{{ date_range.end|date:'Y-m-d' }}">
+                    </div>
+                </div>
+            </li>
+            <li class="mt-2">
+                <label class="form-label fw-bold">Subject</label>
+                <select id="filter-subject" class="form-select form-select-sm">
+                    <option value="">All Subjects</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </li>
+            <li class="mt-2">
+                <label class="form-label fw-bold">Grading Period</label>
+                <select id="filter-grading-period" class="form-select form-select-sm">
+                    <option value="">All Periods</option>
+                    {% for period in grading_periods %}
+                    <option value="{{ period.id }}">{{ period.name }}</option>
+                    {% endfor %}
+                </select>
+            </li>
+            <li class="mt-3">
+                <button class="btn btn-primary btn-sm w-100" onclick="applyAnalyticsFilters()">
+                    <i class="bi bi-funnel me-2"></i>Apply Filters
+                </button>
+            </li>
+        </ul>
+    </div>
+    <button class="btn btn-outline-success" onclick="exportAnalyticsData()">
+        <i class="bi bi-download me-2"></i>Export Data
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Key Metrics Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="stat-icon primary">
+                <i class="bi bi-people"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">{{ total_students }}</h4>
+                <small class="text-muted">Total Students</small>
+                <div class="small text-success mt-1">
+                    <i class="bi bi-arrow-up me-1"></i>{{ active_students }} active
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="stat-icon success">
+                <i class="bi bi-mortarboard"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">{{ total_classes }}</h4>
+                <small class="text-muted">Classes</small>
+                <div class="small text-info mt-1">
+                    <i class="bi bi-person me-1"></i>{{ total_teachers }} teachers
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="stat-icon warning">
+                <i class="bi bi-book"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">{{ total_subjects }}</h4>
+                <small class="text-muted">Subjects</small>
+                <div class="small text-muted mt-1">
+                    Avg: {{ overall_average }}%
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card h-100">
+            <div class="stat-icon info">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div>
+                <h4 class="fw-bold mb-0">{{ attendance_rate }}%</h4>
+                <small class="text-muted">Attendance Rate</small>
+                <div class="small text-success mt-1">
+                    <i class="bi bi-graph-up me-1"></i>Trending up
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analytics Tabs -->
+<ul class="nav nav-tabs mb-4" id="analyticsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+            <i class="bi bi-speedometer2 me-2"></i>Overview
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="grade-distribution-tab" data-bs-toggle="tab" data-bs-target="#grade-distribution" type="button" role="tab">
+            <i class="bi bi-bar-chart me-2"></i>Grade Distribution
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="attendance-trends-tab" data-bs-toggle="tab" data-bs-target="#attendance-trends" type="button" role="tab">
+            <i class="bi bi-line-chart me-2"></i>Attendance Trends
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="performance-comparison-tab" data-bs-toggle="tab" data-bs-target="#performance-comparison" type="button" role="tab">
+            <i class="bi bi-activity me-2"></i>Performance Comparison
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="top-students-tab" data-bs-toggle="tab" data-bs-target="#top-students" type="button" role="tab">
+            <i class="bi bi-trophy me-2"></i>Top Performers
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="analyticsTabContent">
+    <!-- Overview Tab -->
+    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-graph-up me-2"></i>School Performance Overview
+                    </h6>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="overviewChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-pie-chart me-2"></i>Grade Distribution
+                    </h6>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="gradeDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="glass-card p-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-list-ul me-2"></i>Subject Performance
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Avg Score</th>
+                                    <th>Students</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in subject_averages %}
+                                <tr>
+                                    <td>{{ subject.subject__name }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ subject.avg_score|floatformat:1 }}%</span>
+                                    </td>
+                                    <td>{{ subject.student_count }}</td>
+                                    <td>
+                                        <i class="bi bi-arrow-up text-success"></i>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="glass-card p-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-calendar2-week me-2"></i>Recent Activity
+                    </h6>
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Mathematics grades updated</h6>
+                                <small class="text-muted">2 hours ago</small>
+                            </div>
+                            <p class="mb-1">Q1 grades for Algebra class updated by Mr. Smith</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Attendance report generated</h6>
+                                <small class="text-muted">4 hours ago</small>
+                            </div>
+                            <p class="mb-1">Monthly attendance summary for Grade 10</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">New student enrolled</h6>
+                                <small class="text-muted">1 day ago</small>
+                            </div>
+                            <p class="mb-1">John Doe enrolled in Science class</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grade Distribution Tab -->
+    <div class="tab-pane fade" id="grade-distribution" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-bar-chart me-2"></i>Grade Distribution by Subject
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="gradeDistributionBySubjectChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-pie-chart me-2"></i>Overall Grade Distribution
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="overallGradeDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Trends Tab -->
+    <div class="tab-pane fade" id="attendance-trends" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-line-chart me-2"></i>Attendance Trends
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="attendanceTrendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-calendar2-check me-2"></i>Attendance Summary
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="attendanceSummaryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Comparison Tab -->
+    <div class="tab-pane fade" id="performance-comparison" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-activity me-2"></i>Subject Performance Comparison
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="subjectPerformanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-people me-2"></i>Class Performance
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="classPerformanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Students Tab -->
+    <div class="tab-pane fade" id="top-students" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-trophy me-2"></i>Top Performing Students
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-modern align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Student</th>
+                                    <th>Average Score</th>
+                                    <th>Grades Count</th>
+                                    <th>Class</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in top_students %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-warning">{{ forloop.counter }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px;">
+                                                <i class="bi bi-person-fill text-white"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ student.student__first_name }} {{ student.student__last_name }}</div>
+                                                <small class="text-muted">{{ student.student__username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ student.avg_score|floatformat:1 }}%</span>
+                                    </td>
+                                    <td>{{ student.grade_count }}</td>
+                                    <td>
+                                        {% comment %} Get student's class {% endcomment %}
+                                        <span class="badge bg-info">Class {{ forloop.counter }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-star me-2"></i>Performance Insights
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="performanceInsightsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart.js configuration
+Chart.defaults.font.family = "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+Chart.defaults.color = '#6c757d';
+
+// Global chart instances
+let charts = {};
+
+// Initialize charts when tabs are shown
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize overview charts
+    initOverviewCharts();
+    
+    // Set up tab event listeners
+    const tabs = new bootstrap.Tab(document.querySelector('#overview-tab'));
+    tabs.show();
+    
+    // Initialize other charts when tabs are clicked
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (e) {
+            const target = e.target.getAttribute('data-bs-target');
+            initTabCharts(target);
+        });
+    });
+});
+
+function initOverviewCharts() {
+    // School Performance Overview Chart
+    const overviewCtx = document.getElementById('overviewChart').getContext('2d');
+    charts.overview = new Chart(overviewCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Average Score',
+                data: [75, 78, 82, 85, 83, 87],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Attendance Rate',
+                data: [92, 94, 91, 95, 93, 96],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Grade Distribution Chart
+    const gradeCtx = document.getElementById('gradeDistributionChart').getContext('2d');
+    charts.gradeDistribution = new Chart(gradeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['A', 'B', 'C', 'D', 'F'],
+            datasets: [{
+                data: [25, 30, 25, 15, 5],
+                backgroundColor: [
+                    '#28a745', '#ffc107', '#fd7e14', '#dc3545', '#6c757d'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function initTabCharts(tabId) {
+    switch(tabId) {
+        case '#grade-distribution':
+            initGradeDistributionCharts();
+            break;
+        case '#attendance-trends':
+            initAttendanceCharts();
+            break;
+        case '#performance-comparison':
+            initPerformanceCharts();
+            break;
+        case '#top-students':
+            initTopStudentsCharts();
+            break;
+    }
+}
+
+function initGradeDistributionCharts() {
+    if (charts.gradeDistributionBySubject) return;
+    
+    const ctx = document.getElementById('gradeDistributionBySubjectChart').getContext('2d');
+    charts.gradeDistributionBySubject = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Math', 'Science', 'English', 'History', 'Art'],
+            datasets: [{
+                label: 'A Grades',
+                data: [15, 12, 18, 10, 20],
+                backgroundColor: '#28a745'
+            }, {
+                label: 'B Grades',
+                data: [20, 25, 22, 18, 15],
+                backgroundColor: '#ffc107'
+            }, {
+                label: 'C Grades',
+                data: [10, 15, 12, 20, 8],
+                backgroundColor: '#fd7e14'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+
+    const ctx2 = document.getElementById('overallGradeDistributionChart').getContext('2d');
+    charts.overallGradeDistribution = new Chart(ctx2, {
+        type: 'pie',
+        data: {
+            labels: ['A', 'B', 'C', 'D', 'F'],
+            datasets: [{
+                data: [25, 30, 25, 15, 5],
+                backgroundColor: [
+                    '#28a745', '#ffc107', '#fd7e14', '#dc3545', '#6c757d'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function initAttendanceCharts() {
+    if (charts.attendanceTrends) return;
+    
+    const ctx = document.getElementById('attendanceTrendsChart').getContext('2d');
+    charts.attendanceTrends = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+            datasets: [{
+                label: 'Present',
+                data: [95, 92, 94, 96, 93, 97],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Absent',
+                data: [3, 5, 4, 2, 5, 2],
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Late',
+                data: [2, 3, 2, 2, 2, 1],
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    const ctx2 = document.getElementById('attendanceSummaryChart').getContext('2d');
+    charts.attendanceSummary = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: ['Present', 'Absent', 'Late', 'Excused'],
+            datasets: [{
+                data: [85, 8, 5, 2],
+                backgroundColor: [
+                    '#28a745', '#dc3545', '#ffc107', '#6f42c1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function initPerformanceCharts() {
+    if (charts.subjectPerformance) return;
+    
+    const ctx = document.getElementById('subjectPerformanceChart').getContext('2d');
+    charts.subjectPerformance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Math', 'Science', 'English', 'History', 'Art', 'PE'],
+            datasets: [{
+                label: 'Average Score',
+                data: [85, 82, 78, 75, 90, 88],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                pointBackgroundColor: '#667eea'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    const ctx2 = document.getElementById('classPerformanceChart').getContext('2d');
+    charts.classPerformance = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: ['Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
+            datasets: [{
+                label: 'Average Score',
+                data: [78, 82, 85, 88],
+                backgroundColor: '#667eea'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function initTopStudentsCharts() {
+    if (charts.performanceInsights) return;
+    
+    const ctx = document.getElementById('performanceInsightsChart').getContext('2d');
+    charts.performanceInsights = new Chart(ctx, {
+        type: 'polarArea',
+        data: {
+            labels: ['Excellent', 'Good', 'Average', 'Below Average', 'Poor'],
+            datasets: [{
+                data: [15, 35, 30, 15, 5],
+                backgroundColor: [
+                    '#28a745', '#ffc107', '#fd7e14', '#dc3545', '#6c757d'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+// Analytics filtering and export functions
+function applyAnalyticsFilters() {
+    const startDate = document.getElementById('filter-start-date').value;
+    const endDate = document.getElementById('filter-end-date').value;
+    const subjectId = document.getElementById('filter-subject').value;
+    const gradingPeriodId = document.getElementById('filter-grading-period').value;
+    
+    // Reload page with filters
+    const url = new URL(window.location.href);
+    url.searchParams.set('start_date', startDate);
+    url.searchParams.set('end_date', endDate);
+    if (subjectId) url.searchParams.set('subject_id', subjectId);
+    if (gradingPeriodId) url.searchParams.set('grading_period_id', gradingPeriodId);
+    
+    window.location.href = url.toString();
+}
+
+function exportAnalyticsData() {
+    // Show export options
+    const exportOptions = `
+        <div class="modal fade show" style="display: block;">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Export Analytics Data</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button class="btn btn-primary w-100 mb-2" onclick="exportToExcel('overview')">
+                                    <i class="bi bi-file-earmark-excel me-2"></i>Export Overview
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <button class="btn btn-success w-100 mb-2" onclick="exportToPDF()">
+                                    <i class="bi bi-file-earmark-pdf me-2"></i>Export PDF Report
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <button class="btn btn-info w-100 mb-2" onclick="exportToCSV('grades')">
+                                    <i class="bi bi-file-earmark-text me-2"></i>Export Grades CSV
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <button class="btn btn-warning w-100 mb-2" onclick="exportToCSV('attendance')">
+                                    <i class="bi bi-file-earmark-text me-2"></i>Export Attendance CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', exportOptions);
+}
+
+function exportToExcel(type) {
+    showToast('Excel export feature coming soon!', 'info');
+}
+
+function exportToPDF() {
+    showToast('PDF export feature coming soon!', 'info');
+}
+
+function exportToCSV(type) {
+    showToast(`${type.toUpperCase()} CSV export feature coming soon!`, 'info');
+}
+
+function showAnalyticsTab(tabId) {
+    const tabTrigger = document.querySelector(`#${tabId}-tab`);
+    if (tabTrigger) {
+        bootstrap.Tab.getInstance(tabTrigger).show();
+    }
+}
+
+// Helper function for showing notifications
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toast-container') || (() => {
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        container.style.zIndex = '99999';
+        document.body.appendChild(container);
+        return container;
+    })();
+    
+    const toastId = 'toast-' + Date.now();
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = `toast align-items-center text-bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+</script>
+{% endblock %}

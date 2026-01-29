@@ -1,0 +1,867 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ student.get_full_name }} Analytics - {{ school.name }}{% endblock %}
+
+{% block page_title %}{{ student.get_full_name }} Analytics{% endblock %}
+
+{% block page_description %}
+Detailed analytics and performance insights for {{ student.get_full_name }}. View academic progress, attendance records, and performance trends.
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'analytics_dashboard' %}">Analytics</a></li>
+<li class="breadcrumb-item active">{{ student.get_full_name }}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex gap-2">
+    <a href="{% url 'report_card_pdf' student.id %}" class="btn btn-outline-primary">
+        <i class="bi bi-download me-2"></i>Download Report Card
+    </a>
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-printer me-2"></i>Print Options
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="printStudentAnalytics()">
+                <i class="bi bi-file-earmark-text me-2"></i>Print Analytics
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="printPerformanceSummary()">
+                <i class="bi bi-file-earmark-bar-graph me-2"></i>Print Summary
+            </a></li>
+        </ul>
+    </div>
+    {% if request.user.role in 'admin,teacher' %}
+    <a href="{% url 'grade_list' %}?student={{ student.id }}" class="btn btn-outline-success">
+        <i class="bi bi-journal-text me-2"></i>Manage Grades
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Student Overview -->
+<div class="row mb-4">
+    <div class="col-lg-3">
+        <div class="glass-card p-4 text-center">
+            {% if student.profile_picture %}
+            <img src="{{ student.profile_picture.url }}" alt="{{ student.get_full_name }}" class="rounded-circle mb-3" style="width: 80px; height: 80px; object-fit: cover;">
+            {% else %}
+            <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 80px; height: 80px;">
+                <i class="bi bi-person-fill text-white fs-1"></i>
+            </div>
+            {% endif %}
+            <h5 class="fw-bold">{{ student.get_full_name }}</h5>
+            <p class="text-muted">{{ student.username }}</p>
+            <div class="badge bg-primary">{{ student.role|title }}</div>
+        </div>
+    </div>
+    <div class="col-lg-9">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card h-100">
+                    <div class="stat-icon primary">
+                        <i class="bi bi-star"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0">{{ overall_average }}%</h4>
+                        <small class="text-muted">Overall Average</small>
+                        <div class="small text-success mt-1">
+                            <i class="bi bi-arrow-up me-1"></i>Excellent
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card h-100">
+                    <div class="stat-icon success">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0">{{ subject_performance|length }}</h4>
+                        <small class="text-muted">Subjects</small>
+                        <div class="small text-info mt-1">
+                            <i class="bi bi-graph-up me-1"></i>Active
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card h-100">
+                    <div class="stat-icon warning">
+                        <i class="bi bi-calendar-check"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0">95%</h4>
+                        <small class="text-muted">Attendance Rate</small>
+                        <div class="small text-success mt-1">
+                            <i class="bi bi-check-circle me-1"></i>Good
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card h-100">
+                    <div class="stat-icon info">
+                        <i class="bi bi-trophy"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0">#3</h4>
+                        <small class="text-muted">Class Rank</small>
+                        <div class="small text-warning mt-1">
+                            <i class="bi bi-arrow-up me-1"></i>Trending
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analytics Tabs -->
+<ul class="nav nav-tabs mb-4" id="studentAnalyticsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="student-overview-tab" data-bs-toggle="tab" data-bs-target="#student-overview" type="button" role="tab">
+            <i class="bi bi-speedometer2 me-2"></i>Overview
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="subject-performance-tab" data-bs-toggle="tab" data-bs-target="#subject-performance" type="button" role="tab">
+            <i class="bi bi-bar-chart me-2"></i>Subject Performance
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="performance-trends-tab" data-bs-toggle="tab" data-bs-target="#performance-trends" type="button" role="tab">
+            <i class="bi bi-line-chart me-2"></i>Performance Trends
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="attendance-record-tab" data-bs-toggle="tab" data-bs-target="#attendance-record" type="button" role="tab">
+            <i class="bi bi-calendar2-week me-2"></i>Attendance Record
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="academic-summary-tab" data-bs-toggle="tab" data-bs-target="#academic-summary" type="button" role="tab">
+            <i class="bi bi-file-text me-2"></i>Academic Summary
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="studentAnalyticsTabContent">
+    <!-- Student Overview Tab -->
+    <div class="tab-pane fade show active" id="student-overview" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-graph-up me-2"></i>Academic Performance Overview
+                    </h6>
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="studentOverviewChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-pie-chart me-2"></i>Grade Distribution
+                    </h6>
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="studentGradeDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="glass-card p-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-list-ul me-2"></i>Strengths & Areas for Improvement
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-success">Strengths</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Mathematics (92%)</li>
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Science (88%)</li>
+                                <li><i class="bi bi-check-circle-fill text-success me-2"></i>Art (95%)</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-warning">Areas for Improvement</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>History (72%)</li>
+                                <li><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>English (76%)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="glass-card p-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-calendar2-event me-2"></i>Recent Academic Events
+                    </h6>
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Math Test - Excellent Performance</h6>
+                                <small class="text-muted">2 days ago</small>
+                            </div>
+                            <p class="mb-1">Scored 95% on Algebra test</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Science Project Completed</h6>
+                                <small class="text-muted">1 week ago</small>
+                            </div>
+                            <p class="mb-1">Received A+ for Biology project</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Reading Improvement</h6>
+                                <small class="text-muted">2 weeks ago</small>
+                            </div>
+                            <p class="mb-1">English reading comprehension improved by 15%</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subject Performance Tab -->
+    <div class="tab-pane fade" id="subject-performance" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-bar-chart me-2"></i>Subject-wise Performance
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="subjectPerformanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-trophy me-2"></i>Subject Rankings
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-modern align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Score</th>
+                                    <th>Grade</th>
+                                    <th>Rank</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in subject_performance %}
+                                <tr>
+                                    <td>{{ subject.subject__name }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ subject.avg_score|floatformat:1 }}%</span>
+                                    </td>
+                                    <td>
+                                        {% if subject.avg_score >= 90 %}
+                                        <span class="badge bg-success">A</span>
+                                        {% elif subject.avg_score >= 80 %}
+                                        <span class="badge bg-info">B</span>
+                                        {% elif subject.avg_score >= 70 %}
+                                        <span class="badge bg-warning">C</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">D</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">#{{ forloop.counter }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Trends Tab -->
+    <div class="tab-pane fade" id="performance-trends" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-line-chart me-2"></i>Performance Over Time
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="performanceTrendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-activity me-2"></i>Performance Metrics
+                    </h6>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body">
+                                    <i class="bi bi-arrow-up text-success fs-2"></i>
+                                    <div class="fw-bold mt-2">+12%</div>
+                                    <small class="text-muted">Improvement</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body">
+                                    <i class="bi bi-calendar-check text-info fs-2"></i>
+                                    <div class="fw-bold mt-2">95%</div>
+                                    <small class="text-muted">Consistency</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mt-3">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body">
+                                    <i class="bi bi-lightbulb text-warning fs-2"></i>
+                                    <div class="fw-bold mt-2">8/10</div>
+                                    <small class="text-muted">Effort</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mt-3">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body">
+                                    <i class="bi bi-people text-primary fs-2"></i>
+                                    <div class="fw-bold mt-2">Top 15%</div>
+                                    <small class="text-muted">Class Rank</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Record Tab -->
+    <div class="tab-pane fade" id="attendance-record" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-calendar2-week me-2"></i>Attendance Trends
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="attendanceTrendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-calendar-check me-2"></i>Attendance Summary
+                    </h6>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="attendanceSummaryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="glass-card p-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-list-ul me-2"></i>Recent Attendance
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Class</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-01-15</td>
+                                    <td>Mathematics</td>
+                                    <td><span class="badge bg-success">Present</span></td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-14</td>
+                                    <td>Science</td>
+                                    <td><span class="badge bg-warning">Late</span></td>
+                                    <td>Traffic delay</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-13</td>
+                                    <td>English</td>
+                                    <td><span class="badge bg-success">Present</span></td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-12</td>
+                                    <td>History</td>
+                                    <td><span class="badge bg-success">Present</span></td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-11</td>
+                                    <td>Art</td>
+                                    <td><span class="badge bg-success">Present</span></td>
+                                    <td>-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Summary Tab -->
+    <div class="tab-pane fade" id="academic-summary" role="tabpanel">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-file-text me-2"></i>Academic Summary Report
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Academic Achievements</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-star-fill text-warning me-2"></i>Mathematics Excellence Award</li>
+                                <li><i class="bi bi-star-fill text-warning me-2"></i>Science Fair Participant</li>
+                                <li><i class="bi bi-star-fill text-warning me-2"></i>Perfect Attendance (3 months)</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-info">Areas of Focus</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-lightbulb-fill text-info me-2"></i>Reading comprehension improvement</li>
+                                <li><i class="bi bi-lightbulb-fill text-info me-2"></i>History project participation</li>
+                                <li><i class="bi bi-lightbulb-fill text-info me-2"></i>Class presentation skills</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-success">Strengths</h6>
+                            <p class="text-muted small">The student demonstrates exceptional analytical skills in mathematics and science. Shows creativity and innovation in project work. Consistently completes assignments on time with high quality.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-warning">Recommendations</h6>
+                            <p class="text-muted small">Continue to build reading comprehension skills through regular reading practice. Consider additional support in history to improve understanding of complex concepts. Participate more actively in class discussions.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="glass-card p-4 mb-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-award me-2"></i>Progress Indicators
+                    </h6>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: 87%" aria-valuenow="87" aria-valuemin="0" aria-valuemax="100">
+                            Overall Performance
+                        </div>
+                    </div>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-info" role="progressbar" style="width: 95%" aria-valuenow="95" aria-valuemin="0" aria-valuemax="100">
+                            Attendance Rate
+                        </div>
+                    </div>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: 78%" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100">
+                            Assignment Completion
+                        </div>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: 82%" aria-valuenow="82" aria-valuemin="0" aria-valuemax="100">
+                            Participation
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-card p-4">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-person me-2"></i>Teacher Comments
+                    </h6>
+                    <div class="card border-0 bg-light">
+                        <div class="card-body">
+                            <p class="mb-0 text-muted small">"John has shown remarkable improvement in mathematics this term. His dedication to understanding complex concepts is commendable. Continue the excellent work!"</p>
+                            <div class="text-end mt-2">
+                                <small class="text-muted">- Mr. Smith, Math Teacher</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart.js configuration
+Chart.defaults.font.family = "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+Chart.defaults.color = '#6c757d';
+
+// Global chart instances
+let charts = {};
+
+// Initialize charts when tabs are shown
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize overview charts
+    initStudentOverviewCharts();
+    
+    // Set up tab event listeners
+    const tabs = new bootstrap.Tab(document.querySelector('#student-overview-tab'));
+    tabs.show();
+    
+    // Initialize other charts when tabs are clicked
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (e) {
+            const target = e.target.getAttribute('data-bs-target');
+            initStudentTabCharts(target);
+        });
+    });
+});
+
+function initStudentOverviewCharts() {
+    // Student Performance Overview Chart
+    const overviewCtx = document.getElementById('studentOverviewChart').getContext('2d');
+    charts.overview = new Chart(overviewCtx, {
+        type: 'radar',
+        data: {
+            labels: ['Math', 'Science', 'English', 'History', 'Art', 'PE'],
+            datasets: [{
+                label: 'Current Performance',
+                data: [92, 88, 76, 72, 95, 85],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                pointBackgroundColor: '#667eea'
+            }, {
+                label: 'Class Average',
+                data: [85, 82, 78, 75, 80, 82],
+                borderColor: '#6c757d',
+                backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                pointBackgroundColor: '#6c757d'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Grade Distribution Chart
+    const gradeCtx = document.getElementById('studentGradeDistributionChart').getContext('2d');
+    charts.gradeDistribution = new Chart(gradeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['A (90-100%)', 'B (80-89%)', 'C (70-79%)', 'D (60-69%)', 'F (<60%)'],
+            datasets: [{
+                data: [45, 30, 20, 4, 1],
+                backgroundColor: [
+                    '#28a745', '#ffc107', '#fd7e14', '#dc3545', '#6c757d'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function initStudentTabCharts(tabId) {
+    switch(tabId) {
+        case '#subject-performance':
+            initSubjectPerformanceCharts();
+            break;
+        case '#performance-trends':
+            initPerformanceTrendsCharts();
+            break;
+        case '#attendance-record':
+            initAttendanceCharts();
+            break;
+        case '#academic-summary':
+            initAcademicSummaryCharts();
+            break;
+    }
+}
+
+function initSubjectPerformanceCharts() {
+    if (charts.subjectPerformance) return;
+    
+    const ctx = document.getElementById('subjectPerformanceChart').getContext('2d');
+    charts.subjectPerformance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Math', 'Science', 'English', 'History', 'Art', 'PE'],
+            datasets: [{
+                label: 'Average Score',
+                data: [92, 88, 76, 72, 95, 85],
+                backgroundColor: '#667eea',
+                borderColor: '#5a67d8',
+                borderWidth: 1
+            }, {
+                label: 'Class Average',
+                data: [85, 82, 78, 75, 80, 82],
+                backgroundColor: '#e2e8f0',
+                borderColor: '#cbd5e0',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function initPerformanceTrendsCharts() {
+    if (charts.performanceTrends) return;
+    
+    const ctx = document.getElementById('performanceTrendsChart').getContext('2d');
+    charts.performanceTrends = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+            datasets: [{
+                label: 'Mathematics',
+                data: [85, 88, 92, 95],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Science',
+                data: [82, 85, 88, 90],
+                borderColor: '#17a2b8',
+                backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'English',
+                data: [70, 72, 76, 78],
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function initAttendanceCharts() {
+    if (charts.attendanceTrends) return;
+    
+    const ctx = document.getElementById('attendanceTrendsChart').getContext('2d');
+    charts.attendanceTrends = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Attendance Rate',
+                data: [95, 92, 98, 96, 94, 97],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    const ctx2 = document.getElementById('attendanceSummaryChart').getContext('2d');
+    charts.attendanceSummary = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: ['Present', 'Late', 'Absent', 'Excused'],
+            datasets: [{
+                data: [92, 5, 2, 1],
+                backgroundColor: [
+                    '#28a745', '#ffc107', '#dc3545', '#6f42c1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function initAcademicSummaryCharts() {
+    if (charts.academicSummary) return;
+    
+    const ctx = document.getElementById('academicSummaryChart').getContext('2d');
+    charts.academicSummary = new Chart(ctx, {
+        type: 'polarArea',
+        data: {
+            labels: ['Excellence', 'Good', 'Average', 'Needs Work'],
+            datasets: [{
+                data: [40, 35, 20, 5],
+                backgroundColor: [
+                    '#28a745', '#ffc107', '#fd7e14', '#dc3545'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+// Print functions
+function printStudentAnalytics() {
+    window.print();
+}
+
+function printPerformanceSummary() {
+    const printContent = document.createElement('div');
+    printContent.innerHTML = `
+        <h2>${document.title}</h2>
+        <p><strong>Overall Average:</strong> ${document.querySelector('.stat-card .fw-bold').textContent}</p>
+        <p><strong>Attendance Rate:</strong> 95%</p>
+        <p><strong>Class Rank:</strong> #3</p>
+        <h3>Subject Performance</h3>
+        <p>Mathematics: 92% (A)</p>
+        <p>Science: 88% (B+)</p>
+        <p>English: 76% (C)</p>
+        <p>History: 72% (C-)</p>
+        <p>Art: 95% (A+)</p>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Performance Summary - ${document.title}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    h2, h3 { color: #333; }
+                    p { margin: 10px 0; }
+                    .summary-box { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
+                </style>
+            </head>
+            <body>
+                <div class="summary-box">
+                    ${printContent.innerHTML}
+                </div>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+// Helper function for showing notifications
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toast-container') || (() => {
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        container.style.zIndex = '99999';
+        document.body.appendChild(container);
+        return container;
+    })();
+    
+    const toastId = 'toast-' + Date.now();
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = `toast align-items-center text-bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+</script>
+{% endblock %}

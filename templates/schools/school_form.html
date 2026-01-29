@@ -79,48 +79,6 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            
-                            <div class="col-md-6">
-                                <div class="mb-4">
-                                    <label for="{{ form.theme.id_for_label }}" class="form-label fw-semibold">
-                                        <i class="bi bi-palette me-2"></i>{{ form.theme.label }}
-                                    </label>
-                                    {{ form.theme }}
-                                    {% if form.theme.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {% for error in form.theme.errors %}
-                                                <div><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
-                                    {% if form.theme.help_text %}
-                                        <div class="form-text text-muted">
-                                            <i class="bi bi-info-circle me-1"></i>{{ form.theme.help_text }}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <div class="mb-4">
-                                    <label for="{{ form.report_template.id_for_label }}" class="form-label fw-semibold">
-                                        <i class="bi bi-file-text me-2"></i>{{ form.report_template.label }}
-                                    </label>
-                                    {{ form.report_template }}
-                                    {% if form.report_template.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {% for error in form.report_template.errors %}
-                                                <div><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
-                                    {% if form.report_template.help_text %}
-                                        <div class="form-text text-muted">
-                                            <i class="bi bi-info-circle me-1"></i>{{ form.report_template.help_text }}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Form Actions -->
