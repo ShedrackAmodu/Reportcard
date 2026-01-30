@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Help & Support - ReportCardApp{% endblock %}
+
+{% block page_title %}Help & Support{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Help & Support</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Search Section -->
+        <div class="glass-card p-4 mb-4">
+            <h3 class="fw-bold mb-4">How can we help?</h3>
+            <form action="{% url 'help_center' %}" method="get" class="mb-0">
+                <div class="input-group input-group-lg">
+                    <input type="text" class="form-control form-control-modern" name="q" placeholder="Search for help articles..." value="{{ request.GET.q }}">
+                    <button class="btn btn-gradient" type="submit">
+                        <i class="bi bi-search me-2"></i>Search
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="row">
+            <!-- Getting Started -->
+            <div class="col-lg-6 mb-4">
+                <div class="glass-card p-4 h-100">
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="rounded-circle bg-primary p-3 text-white me-3">
+                            <i class="bi bi-play-fill" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold">Getting Started</h5>
+                            <p class="text-muted">New to ReportCardApp? Learn the basics</p>
+                        </div>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Creating Your Account
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Navigating the Dashboard
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Understanding Your Role
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Mobile App Installation
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Managing Grades -->
+            <div class="col-lg-6 mb-4">
+                <div class="glass-card p-4 h-100">
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="rounded-circle bg-success p-3 text-white me-3">
+                            <i class="bi bi-graph-up" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold">Managing Grades</h5>
+                            <p class="text-muted">Learn how to work with grades</p>
+                        </div>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Entering Grades
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Bulk Grade Entry
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Importing Grades
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Grade Statistics
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Cards -->
+            <div class="col-lg-6 mb-4">
+                <div class="glass-card p-4 h-100">
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="rounded-circle bg-info p-3 text-white me-3">
+                            <i class="bi bi-file-earmark-pdf" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold">Report Cards</h5>
+                            <p class="text-muted">Generate and manage report cards</p>
+                        </div>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Generating Report Cards
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Customizing Templates
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Publishing & Distribution
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Exporting Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account & Security -->
+            <div class="col-lg-6 mb-4">
+                <div class="glass-card p-4 h-100">
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="rounded-circle bg-warning p-3 text-white me-3">
+                            <i class="bi bi-shield-lock" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold">Account & Security</h5>
+                            <p class="text-muted">Secure your account and data</p>
+                        </div>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'user_profile' %}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Updating Your Profile
+                        </a>
+                        <a href="{% url 'user_settings' %}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Changing Your Password
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Privacy & Data Protection
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chevron-right me-2"></i>Account Recovery
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Support -->
+        <div class="glass-card p-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4 class="fw-bold mb-2">Still need help?</h4>
+                    <p class="text-muted mb-0">Can't find the answer you're looking for? Our support team is here to help. Contact us anytime.</p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <a href="{% url 'support_ticket_create' %}" class="btn btn-gradient">
+                        <i class="bi bi-chat-dots me-2"></i>Contact Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control-modern {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-modern:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+</style>
+{% endblock %}

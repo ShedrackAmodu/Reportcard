@@ -20,14 +20,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+import os
+from pathlib import Path
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-@^oju396xj(3-u8%3qq@&-p-lvxm6(s#$4a**fy_brg=6kmj2m"
+# In production, use environment variable or secrets management
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', "django-insecure-@^oju396xj(3-u8%3qq@&-p-lvxm6(s#$4a**fy_brg=6kmj2m")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True  # Set to False in production
+# Set to False in production
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['d15fb01a0276.ngrok-free.app', '2feedf0f7bce.ngrok-free.app', 'c7769ba438b8.ngrok-free.app', 'localhost', '127.0.0.1', 'amodu.pythonanywhere.com']  # Add your PythonAnywhere domain and ngrok domain
-
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'amodu.pythonanywhere.com',
+    # Add production domains here
+    # 'yourdomain.com',
+]
 
 # Application definition
 
@@ -50,12 +60,12 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "authentication.middleware.MultiTenantMiddleware",
-    "authentication.middleware.AuthenticationRedirectMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "authentication.middleware.NoCacheMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -174,9 +184,16 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SECURE = True
+# Use secure cookies only in production
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
 X_FRAME_OPTIONS = 'DENY'
+
+# Authentication settings
+LOGIN_URL = 'auth:login'  # URL name for login page
+LOGOUT_URL = 'auth:logout'  # URL name for logout page
+LOGIN_REDIRECT_URL = 'dashboard'  # URL name to redirect after login
+LOGOUT_REDIRECT_URL = 'landing'  # URL name to redirect after logout
 
 # REST Framework settings
 REST_FRAMEWORK = {

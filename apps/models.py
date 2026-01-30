@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class School(models.Model):
@@ -124,6 +125,12 @@ class Grade(models.Model):
 
     class Meta:
         unique_together = ('student', 'subject', 'grading_period')
+        indexes = [
+            models.Index(fields=['student', 'grading_period']),
+            models.Index(fields=['subject', 'grading_period']),
+            models.Index(fields=['school', 'grading_period']),
+            models.Index(fields=['student', 'school']),
+        ]
 
     def __str__(self):
         return f"{self.student.username} - {self.subject.name} - {self.grading_period.name}: {self.letter_grade or self.score}"
@@ -349,6 +356,18 @@ class SchoolProfile(models.Model):
     enable_support_portal = models.BooleanField(default=True, help_text="Enable support ticket system")
     enable_custom_templates = models.BooleanField(default=True, help_text="Enable custom report templates")
     
+    # Theme and appearance
+    theme_mode = models.CharField(
+        max_length=20,
+        default='light',
+        choices=[
+            ('light', 'Light'),
+            ('dark', 'Dark'),
+            ('auto', 'Auto'),
+        ],
+        help_text="Theme mode for reports and dashboard"
+    )
+    
     # Template selection
     default_report_template = models.CharField(
         max_length=50, 
@@ -565,3 +584,276 @@ class ReportTemplateUsage(models.Model):
     
     def __str__(self):
         return f"{self.template.name} usage for {self.school.name}"
+
+
+class ReportCard(models.Model):
+    """Generated report card for a student in a specific grading period"""
+    
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('archived', 'Archived'),
+    ]
+    
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='report_cards', db_index=True)
+    grading_period = models.ForeignKey(GradingPeriod, on_delete=models.CASCADE, related_name='report_cards', db_index=True)
+    template = models.ForeignKey(ReportTemplate, on_delete=models.CASCADE, related_name='report_cards', db_index=True)
+    
+    # Report card metadata
+    academic_year = models.CharField(max_length=20, blank=True, help_text="Academic year (e.g., 2024/2025)")
+    average_grade = models.FloatField(null=True, blank=True, help_text="Calculated average grade percentage")
+    class_rank = models.PositiveIntegerField(null=True, blank=True, help_text="Student's rank in class")
+    
+    # Status and tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
+    is_published = models.BooleanField(default=False, db_index=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    published_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
+                                   related_name='published_report_cards', limit_choices_to={'role__in': ['admin', 'teacher']})
+    
+    # Generated content
+    generated_data = models.JSONField(default=dict, blank=True, help_text="Generated report card data")
+    pdf_file = models.FileField(upload_to='report_cards/pdfs/', null=True, blank=True, help_text="Generated PDF file")
+    
+    # Custom fields data
+    custom_fields_data = models.JSONField(default=dict, blank=True, help_text="Custom field values for this report card")
+    
+    # Metadata
+    school = models.ForeignKey(School, on_delete=models.CASCADE, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_report_cards')
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['student', 'grading_period', 'template']
+        indexes = [
+            models.Index(fields=['student', 'grading_period']),
+            models.Index(fields=['status', 'is_published']),
+            models.Index(fields=['school', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.student.get_full_name()} - {self.grading_period.name} - {self.template.name}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-set academic year from grading period if not provided
+        if not self.academic_year and self.grading_period:
+            self.academic_year = f"{self.grading_period.start_date.year}/{self.grading_period.end_date.year}"
+        
+        # Auto-set school from student if not provided
+        if not self.school and self.student:
+            self.school = self.student.school
+        
+        # Auto-set published_at when status changes to published
+        if self.status == 'published' and not self.published_at:
+            self.published_at = self.updated_at
+            if not self.published_by:
+                # Try to get the current user from the request context if available
+                # This will be set by the view when publishing
+                pass
+        elif self.status != 'published':
+            self.published_at = None
+            self.published_by = None
+        
+        super().save(*args, **kwargs)
+    
+    def calculate_average_grade(self):
+        """Calculate and update the average grade for this report card"""
+        from django.db.models import Avg
+        
+        # Get all grades for this student in this grading period
+        grades = Grade.objects.filter(
+            student=self.student,
+            grading_period=self.grading_period
+        ).exclude(score__isnull=True)
+        
+        if grades.exists():
+            avg_score = grades.aggregate(avg_score=Avg('score'))['avg_score']
+            self.average_grade = round(avg_score, 2) if avg_score else None
+            self.save(update_fields=['average_grade'])
+            return self.average_grade
+        else:
+            self.average_grade = None
+            self.save(update_fields=['average_grade'])
+            return None
+    
+    def get_grades_data(self):
+        """Get grades data for this report card"""
+        return Grade.objects.filter(
+            student=self.student,
+            grading_period=self.grading_period
+        ).select_related('subject').order_by('subject__name')
+    
+    def get_attendance_data(self):
+        """Get attendance summary for this report card"""
+        from django.db.models import Count, Q
+        
+        attendance_records = Attendance.objects.filter(
+            student=self.student,
+            date__gte=self.grading_period.start_date,
+            date__lte=self.grading_period.end_date
+        )
+        
+        total_days = attendance_records.count()
+        present_days = attendance_records.filter(status='present').count()
+        absent_days = attendance_records.filter(status='absent').count()
+        late_days = attendance_records.filter(status='late').count()
+        excused_days = attendance_records.filter(status='excused').count()
+        
+        attendance_percentage = round((present_days / total_days * 100), 2) if total_days > 0 else 0
+        
+        return {
+            'total_days': total_days,
+            'present_days': present_days,
+            'absent_days': absent_days,
+            'late_days': late_days,
+            'excused_days': excused_days,
+            'attendance_percentage': attendance_percentage
+        }
+    
+    def get_class_rank(self):
+        """Calculate student's rank in class for this grading period"""
+        if not self.average_grade:
+            return None
+        
+        # Get all students in the same class and grading period
+        class_students = StudentEnrollment.objects.filter(
+            class_section__enrollments__student=self.student,
+            class_section__enrollments__grading_period=self.grading_period
+        ).values_list('student_id', flat=True).distinct()
+        
+        # Get average grades for all students in the class
+        class_averages = ReportCard.objects.filter(
+            student_id__in=class_students,
+            grading_period=self.grading_period,
+            average_grade__isnull=False
+        ).order_by('-average_grade')
+        
+        # Find rank
+        for rank, report_card in enumerate(class_averages, 1):
+            if report_card.student == self.student:
+                self.class_rank = rank
+                self.save(update_fields=['class_rank'])
+                return rank
+        
+        return None
+    
+    def publish(self, published_by=None):
+        """Publish this report card"""
+        self.status = 'published'
+        self.is_published = True
+        self.published_at = timezone.now()
+        self.published_by = published_by
+        self.save()
+        
+        # Update template usage statistics
+        usage, created = ReportTemplateUsage.objects.get_or_create(
+            template=self.template,
+            school=self.school
+        )
+        usage.report_count += 1
+        usage.save()
+    
+    def unpublish(self):
+        """Unpublish this report card"""
+        self.status = 'draft'
+        self.is_published = False
+        self.published_at = None
+        self.published_by = None
+        self.save()
+    
+    def archive(self):
+        """Archive this report card"""
+        self.status = 'archived'
+        self.is_published = False
+        self.published_at = None
+        self.published_by = None
+        self.save()
+    
+    def get_generated_data(self):
+        """Get the complete generated data for this report card"""
+        if not self.generated_data:
+            self.generate_data()
+        
+        return self.generated_data
+    
+    def generate_data(self):
+        """Generate complete report card data"""
+        from django.utils import timezone
+        
+        # Get student information
+        student_info = {
+            'id': self.student.id,
+            'full_name': self.student.get_full_name(),
+            'username': self.student.username,
+            'email': self.student.email,
+            'role': self.student.role,
+            'school': self.student.school.name if self.student.school else '',
+        }
+        
+        # Get class information
+        enrollment = StudentEnrollment.objects.filter(
+            student=self.student,
+            class_section__enrollments__grading_period=self.grading_period
+        ).first()
+        
+        class_info = {
+            'name': enrollment.class_section.name if enrollment else '',
+            'grade_level': enrollment.class_section.grade_level if enrollment else '',
+            'teacher': enrollment.class_section.teacher.get_full_name() if enrollment and enrollment.class_section.teacher else '',
+        }
+        
+        # Get grades data
+        grades_data = []
+        for grade in self.get_grades_data():
+            grades_data.append({
+                'subject': {
+                    'name': grade.subject.name,
+                    'code': grade.subject.code,
+                },
+                'score': grade.score,
+                'letter_grade': grade.letter_grade,
+                'comments': grade.comments,
+                'grading_period': {
+                    'name': grade.grading_period.name,
+                    'start_date': grade.grading_period.start_date.strftime('%Y-%m-%d'),
+                    'end_date': grade.grading_period.end_date.strftime('%Y-%m-%d'),
+                }
+            })
+        
+        # Get attendance data
+        attendance_data = self.get_attendance_data()
+        
+        # Get template configuration
+        template_config = self.template.get_template_config()
+        
+        # Generate complete data structure
+        self.generated_data = {
+            'report_card': {
+                'id': self.id,
+                'academic_year': self.academic_year,
+                'average_grade': self.average_grade,
+                'class_rank': self.class_rank,
+                'status': self.status,
+                'is_published': self.is_published,
+                'published_at': self.published_at.isoformat() if self.published_at else None,
+                'created_at': self.created_at.isoformat(),
+                'updated_at': self.updated_at.isoformat(),
+            },
+            'student': student_info,
+            'class': class_info,
+            'grading_period': {
+                'name': self.grading_period.name,
+                'start_date': self.grading_period.start_date.strftime('%Y-%m-%d'),
+                'end_date': self.grading_period.end_date.strftime('%Y-%m-%d'),
+            },
+            'grades': grades_data,
+            'attendance': attendance_data,
+            'template': template_config,
+            'custom_fields': self.custom_fields_data,
+            'generated_at': timezone.now().isoformat(),
+        }
+        
+        self.save(update_fields=['generated_data'])
+        return self.generated_data

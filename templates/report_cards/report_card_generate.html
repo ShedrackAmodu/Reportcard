@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Report Cards{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Generate Report Cards</h3>
+                    <div class="card-tools">
+                        <a href="{% url 'report_card_list' %}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="{{ form.grading_period.id_for_label }}">Grading Period</label>
+                                    <select name="grading_period" id="{{ form.grading_period.id_for_label }}" class="form-control" required>
+                                        <option value="">-- Select Grading Period --</option>
+                                        {% for period in grading_periods %}
+                                            <option value="{{ period.id }}">{{ period.name }} ({{ period.start_date|date:"M d, Y" }} - {{ period.end_date|date:"M d, Y" }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="{{ form.template.id_for_label }}">Report Template</label>
+                                    <select name="template" id="{{ form.template.id_for_label }}" class="form-control" required>
+                                        <option value="">-- Select Template --</option>
+                                        {% for template in templates %}
+                                            <option value="{{ template.id }}">{{ template.name }}{% if not template.is_active %} (Inactive){% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Students</label>
+                                    <div class="form-check">
+                                        <input type="checkbox" id="select-all-students" class="form-check-input">
+                                        <label for="select-all-students" class="form-check-label">Select All</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">
+                                        {% for student in students %}
+                                            <div class="form-check">
+                                                <input type="checkbox" name="student_ids" value="{{ student.id }}" id="student_{{ student.id }}" class="form-check-input student-checkbox">
+                                                <label for="student_{{ student.id }}" class="form-check-label">
+                                                    {{ student.get_full_name }} ({{ student.username }})
+                                                </label>
+                                            </div>
+                                        {% empty %}
+                                            <p class="text-muted">No students available.</p>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <button type="submit" class="btn btn-primary" id="generate-btn" disabled>
+                                        <i class="fas fa-file-alt"></i> Generate Report Cards
+                                    </button>
+                                    <a href="{% url 'report_card_list' %}" class="btn btn-secondary">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all-students');
+    const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+    const generateBtn = document.getElementById('generate-btn');
+    
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        studentCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateGenerateButton();
+    });
+    
+    // Individual checkbox change
+    studentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateGenerateButton);
+    });
+    
+    // Update generate button state
+    function updateGenerateButton() {
+        const anyChecked = Array.from(studentCheckboxes).some(cb => cb.checked);
+        generateBtn.disabled = !anyChecked;
+    }
+    
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const gradingPeriod = document.querySelector('select[name="grading_period"]').value;
+        const template = document.querySelector('select[name="template"]').value;
+        const anyStudentChecked = Array.from(studentCheckboxes).some(cb => cb.checked);
+        
+        if (!gradingPeriod || !template || !anyStudentChecked) {
+            e.preventDefault();
+            alert('Please select a grading period, template, and at least one student.');
+        }
+    });
+});
+</script>
+{% endblock %}

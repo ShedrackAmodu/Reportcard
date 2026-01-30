@@ -132,9 +132,12 @@ dmypy.json
 .vscode/
 .idea/
 
-# Static files
+# Static files (generated at deploy/buildtime)
 staticfiles/
-static/
+
+# Local static assets (keep source, exclude vendors)
+static/vendor/
+static/node_modules/
 
 # Node modules for frontend
 node_modules/

@@ -1,130 +1,67 @@
-"""
-Permission classes for role-based access control and API endpoints.
-"""
-
 from rest_framework.permissions import BasePermission
 
 
 class IsSuperAdmin(BasePermission):
-    """
-    Allows access only to super admin users.
-    """
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'super_admin'
+        return bool(request.user and getattr(request.user, 'role', None) == 'super_admin')
 
 
 class IsSchoolAdmin(BasePermission):
-    """
-    Allows access to school admins and super admins.
-    """
     def has_permission(self, request, view):
-        if not request.user.is_authenticated:
-            return False
-        if request.user.role == 'super_admin':
-            return True
-        return request.user.role == 'admin' and request.user.school is not None
+        return bool(request.user and getattr(request.user, 'role', None) in ['admin', 'super_admin'])
 
 
 class IsTeacher(BasePermission):
-    """
-    Allows access to teachers and higher roles (admin, super_admin).
-    """
     def has_permission(self, request, view):
-        if not request.user.is_authenticated:
-            return False
-        return request.user.role in ['super_admin', 'admin', 'teacher']
+        return bool(request.user and getattr(request.user, 'role', None) == 'teacher')
 
 
 class IsStudent(BasePermission):
-    """
-    Allows access to students and higher roles.
-    """
     def has_permission(self, request, view):
-        if not request.user.is_authenticated:
-            return False
-        return request.user.role in ['super_admin', 'admin', 'teacher', 'student']
+        return bool(request.user and getattr(request.user, 'role', None) == 'student')
 
 
 class IsSchoolMember(BasePermission):
-    """
-    Allows access to users belonging to the same school (via middleware).
-    """
     def has_permission(self, request, view):
-        if not request.user.is_authenticated:
-            return False
-        if request.user.role == 'super_admin':
-            return True
-        return request.user.school == getattr(request, 'school', None)
+        return bool(request.user and getattr(request.user, 'role', None) in ['admin', 'teacher', 'student', 'super_admin'])
+
+
+class IsTeacherOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and getattr(request.user, 'role', None) in ['teacher', 'admin', 'super_admin'])
 
 
 class IsOwnerOrSchoolAdmin(BasePermission):
-    """
-    Allows access to object owners or school admins/super admins.
-    """
     def has_object_permission(self, request, view, obj):
-        if request.user.role == 'super_admin':
+        user = request.user
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        if getattr(user, 'role', None) == 'super_admin':
             return True
-        if hasattr(obj, 'school'):
-            return obj.school == request.user.school and (
-                request.user.role == 'admin' or
-                getattr(obj, 'user', None) == request.user or
-                getattr(obj, 'student', None) == request.user
-            )
+        # Owner
+        try:
+            if getattr(obj, 'created_by', None) == user:
+                return True
+        except Exception:
+            pass
+        # School admin for same school
+        try:
+            if getattr(user, 'role', None) == 'admin' and getattr(obj, 'school', None) == getattr(user, 'school', None):
+                return True
+        except Exception:
+            pass
         return False
 
 
 class IsStudentOwner(BasePermission):
-    """
-    Allows students to access only their own data.
-    """
     def has_object_permission(self, request, view, obj):
-        if request.user.role == 'student':
-            return getattr(obj, 'student', None) == request.user or getattr(obj, 'user', None) == request.user
-        return True  # Allow other roles to pass through to other permission checks
-
-
-class IsTeacherOrAdmin(BasePermission):
-    """
-    Allows access to teachers and admins for school-specific operations.
-    """
-    def has_permission(self, request, view):
-        if not request.user.is_authenticated:
+        user = request.user
+        if not user or not getattr(user, 'is_authenticated', False):
             return False
-        if request.user.role == 'super_admin':
+        if getattr(user, 'role', None) == 'super_admin':
             return True
-        return request.user.role in ['admin', 'teacher'] and request.user.school is not None
-
-    def has_object_permission(self, request, view, obj):
-        if request.user.role == 'super_admin':
-            return True
-        if hasattr(obj, 'school'):
-            return obj.school == request.user.school
-        return False
-
-
-# Function-based permission decorators for views
-def is_school_admin_or_superuser(user):
-    """Check if user is school admin or super admin"""
-    if not user.is_authenticated:
-        return False
-    if user.role == 'super_admin':
-        return True
-    return user.role == 'admin' and user.school is not None
-
-
-def is_school_admin_or_teacher(user):
-    """Check if user is school admin, teacher, or super admin"""
-    if not user.is_authenticated:
-        return False
-    if user.role == 'super_admin':
-        return True
-    return user.role in ['admin', 'teacher'] and user.school is not None
-
-
-def is_school_admin_or_superuser_or_teacher(user):
-    """Check if user is school admin, super admin, or teacher"""
-    if not user.is_authenticated:
-        return False
-    if user.role == 'super_admin':
-        return True
-    return user.role in ['admin', 'teacher'] and user.school is not None
+        # If object has student attribute
+        try:
+            return getattr(obj, 'student', None) == user
+        except Exception:
+            return False

@@ -4,11 +4,11 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     SchoolViewSet, UserViewSet, ClassSectionViewSet, SubjectViewSet,
-    GradingScaleViewSet, GradingPeriodViewSet, StudentEnrollmentViewSet, GradeViewSet, AttendanceViewSet, SchoolProfileViewSet, SupportTicketViewSet, sync_view, search_api_view,
+    GradingScaleViewSet, GradingPeriodViewSet, StudentEnrollmentViewSet, GradeViewSet, AttendanceViewSet, SchoolProfileViewSet, SupportTicketViewSet, ReportCardViewSet, sync_view, search_api_view,
     dashboard_view, landing_view, school_switch, offline_view, manifest_view, sw_view,
-    apk_download_view, analytics_dashboard, search_view, push_sync_view,
+    apk_download_view, analytics_dashboard, search_view, push_sync_view, offline_sync_batch_view,
     school_list, school_create, school_update, school_delete,
-    user_list, user_create, user_update, user_delete,
+    user_list, user_create, user_update, user_delete, user_profile, user_settings, help_center,
     class_section_list, class_section_create, class_section_update, class_section_delete,
     subject_list, subject_create, subject_update, subject_delete,
     grading_scale_list, grading_scale_create, grading_scale_update, grading_scale_delete,
@@ -17,18 +17,23 @@ from .views import (
     grade_list, grade_bulk_entry, grade_import, grade_create, grade_update, grade_delete,
     attendance_list, attendance_create, attendance_update, attendance_delete,
     application_list, application_review,
-    report_card_pdf, report_card_list, batch_report_card_pdf,
+    report_card_pdf, report_card_list, batch_report_card_pdf, report_card_generate,
+    publish_report_card, unpublish_report_card, delete_report_card,
+    export_report_cards_pdf, export_report_cards_excel,
     export_grades_excel, export_attendance_excel, export_users_csv,
     school_profile_view, support_ticket_list, support_ticket_create, support_ticket_detail,
-    support_dashboard, support_ticket_update, support_ticket_assign
+    support_dashboard, support_ticket_update, support_ticket_assign,
+    student_grades, student_attendance, student_report_cards
 )
 from .api_views import (
-    pwa_tracking_view, pwa_status_view, pwa_install_guide_view, pwa_health_check_view
+    pwa_tracking_view, pwa_status_view, pwa_install_guide_view, pwa_health_check_view, clear_offline_cache
 )
 from .report_template_views import (
-    template_list, template_create, template_edit, template_delete, 
+    template_list, template_create, template_edit, template_delete,
     template_duplicate, template_preview, template_import
 )
+
+from .analytics_views import class_analytics, student_analytics
 
 router = DefaultRouter()
 router.register(r'schools', SchoolViewSet)
@@ -40,6 +45,7 @@ router.register(r'grading-periods', GradingPeriodViewSet)
 router.register(r'student-enrollments', StudentEnrollmentViewSet)
 router.register(r'grades', GradeViewSet)
 router.register(r'attendance', AttendanceViewSet)
+router.register(r'report-cards', ReportCardViewSet)
 
 
 urlpatterns = [
@@ -47,13 +53,15 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/sync/', sync_view, name='sync'),
     path('api/sync/push/', push_sync_view, name='sync_push'),
+    path('api/sync/batch/', offline_sync_batch_view, name='offline_sync_batch'),
     path('api/search/', search_api_view, name='search_api'),
-    
+
     # PWA Installation Analytics and Tracking
     path('api/pwa-tracking/', pwa_tracking_view, name='pwa_tracking'),
     path('api/pwa-status/', pwa_status_view, name='pwa_status'),
     path('api/pwa-install-guide/', pwa_install_guide_view, name='pwa_install_guide'),
     path('api/pwa-health-check/', pwa_health_check_view, name='pwa_health_check'),
+    path('api/clear-offline-cache/', clear_offline_cache, name='clear_offline_cache'),
 
     # PWA files
     path('manifest.json', manifest_view, name='manifest'),
@@ -131,8 +139,14 @@ urlpatterns = [
 
     # Report Card Management
     path('report-cards/', report_card_list, name='report_card_list'),
+    path('report-cards/generate/', report_card_generate, name='report_card_generate'),
     path('report-cards/<int:student_id>/pdf/', report_card_pdf, name='report_card_pdf'),
     path('report-cards/batch-pdf/<int:class_id>/', batch_report_card_pdf, name='batch_report_card_pdf'),
+    path('report-cards/publish/<int:report_card_id>/', publish_report_card, name='publish_report_card'),
+    path('report-cards/unpublish/<int:report_card_id>/', unpublish_report_card, name='unpublish_report_card'),
+    path('report-cards/delete/<int:report_card_id>/', delete_report_card, name='delete_report_card'),
+    path('report-cards/export/pdf/', export_report_cards_pdf, name='export_report_cards_pdf'),
+    path('report-cards/export/excel/', export_report_cards_excel, name='export_report_cards_excel'),
 
     # Report Templates Management
     path('report-templates/', template_list, name='template_list'),
@@ -153,6 +167,9 @@ urlpatterns = [
 
     # Analytics Dashboard
     path('analytics/', analytics_dashboard, name='analytics_dashboard'),
+    # Analytics detail views
+    path('analytics/class/<int:class_id>/', class_analytics, name='class_analytics'),
+    path('analytics/student/<int:student_id>/', student_analytics, name='student_analytics'),
 
     # School Profile
     path('school-profile/', school_profile_view, name='school_profile'),
@@ -164,6 +181,16 @@ urlpatterns = [
     path('support/tickets/<int:pk>/update/', support_ticket_update, name='support_ticket_update'),
     path('support/tickets/<int:pk>/assign/', support_ticket_assign, name='support_ticket_assign'),
     path('support/dashboard/', support_dashboard, name='support_dashboard'),
+
+    # User Profile & Settings
+    path('profile/', user_profile, name='user_profile'),
+    path('settings/', user_settings, name='user_settings'),
+    path('help/', help_center, name='help_center'),
+
+    # Student Portal
+    path('student/grades/', student_grades, name='student_grades'),
+    path('student/attendance/', student_attendance, name='student_attendance'),
+    path('student/report-cards/', student_report_cards, name='student_report_cards'),
 
     # Search
     path('search/', search_view, name='search'),

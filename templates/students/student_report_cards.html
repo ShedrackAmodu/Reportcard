@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Report Cards - ReportCardApp{% endblock %}
+
+{% block page_title %}My Report Cards{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">My Report Cards</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        {% if report_cards %}
+        <div class="glass-card p-4 mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="fw-bold mb-0">Your Report Cards</h5>
+                    <small class="text-muted">View and download your academic report cards</small>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    {% if grading_periods %}
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-filter me-2"></i>Filter by Period
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'student_report_cards' %}">All Periods</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% for period in grading_periods %}
+                            <li><a class="dropdown-item" href="?grading_period={{ period.id }}">{{ period.name }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-modern table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Grading Period</th>
+                        <th>Academic Year</th>
+                        <th>Average Grade</th>
+                        <th>Status</th>
+                        <th>Generated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for card in report_cards %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ card.grading_period.name }}</div>
+                            <small class="text-muted">{{ card.grading_period.start_date|date:"M j" }} - {{ card.grading_period.end_date|date:"M j" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info badge-modern">{{ card.academic_year }}</span>
+                        </td>
+                        <td>
+                            {% if card.average_grade %}
+                            <span class="badge bg-{{ card.get_average_grade_color }} badge-modern">{{ card.average_grade|floatformat:1 }}%</span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if card.is_published %}
+                            <span class="badge bg-success badge-modern">
+                                <i class="bi bi-check-circle me-1"></i>Published
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning badge-modern">
+                                <i class="bi bi-clock me-1"></i>Draft
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ card.created_at|date:"M j, Y" }}</div>
+                            <small class="text-muted">{{ card.created_at|time:"H:i" }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'report_card_pdf' card.student.id %}" class="btn btn-outline-primary" title="View Report Card">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'report_card_pdf' card.student.id %}" download class="btn btn-outline-success" title="Download PDF">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="glass-card p-4">
+            <div class="empty-state text-center">
+                <div class="empty-state-icon mb-3">
+                    <i class="bi bi-card-text" style="font-size: 3rem; color: #6c757d;"></i>
+                </div>
+                <h5 class="text-muted">No report cards yet</h5>
+                <p class="text-muted">Your report cards will appear here once they are generated and published</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

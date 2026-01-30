@@ -23,7 +23,7 @@ Manage subjects and their assignments. Add new subjects, edit existing ones, or 
             <i class="bi bi-filter me-2"></i>Filter by School
         </button>
         <ul class="dropdown-menu">
-            <li><a class="dropdown-item active" href="#">All Schools</a></li>
+            <li><a class="dropdown-item active" href="{% url 'subject_list' %}">All Schools</a></li>
             <li><hr class="dropdown-divider"></li>
             {% for school in schools %}
             <li><a class="dropdown-item" href="?school={{ school.id }}">{{ school.name }}</a></li>
@@ -144,6 +144,7 @@ Manage subjects and their assignments. Add new subjects, edit existing ones, or 
                     {% endif %}
                 </ul>
             </nav>
+            {% endif %}
             {% else %}
             <div class="empty-state">
                 <div class="empty-state-icon">

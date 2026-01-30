@@ -23,7 +23,7 @@ Manage class sections and their assignments. Add new classes, edit existing ones
             <i class="bi bi-filter me-2"></i>Filter by Grade
         </button>
         <ul class="dropdown-menu">
-            <li><a class="dropdown-item active" href="#">All Grades</a></li>
+            <li><a class="dropdown-item active" href="{% url 'class_section_list' %}">All Grades</a></li>
             <li><hr class="dropdown-divider"></li>
             {% for grade in grade_levels %}
             <li><a class="dropdown-item" href="?grade={{ grade }}">{{ grade }}</a></li>
@@ -153,6 +153,7 @@ Manage class sections and their assignments. Add new classes, edit existing ones
                     {% endif %}
                 </ul>
             </nav>
+            {% endif %}
             {% else %}
             <div class="empty-state">
                 <div class="empty-state-icon">

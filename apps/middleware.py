@@ -7,12 +7,15 @@ Example:
 """
 
 # For backward compatibility, import from the new location
-from authentication.middleware import (
-    MultiTenantMiddleware,
-    AuthenticationRedirectMiddleware,
-)
+try:
+    # Import the currently available middleware from the authentication app
+    from authentication.middleware import MultiTenantMiddleware
+except Exception:
+    # Fallback stub to avoid import errors for older code that imports apps.middleware
+    class MultiTenantMiddleware:
+        def __init__(self, *args, **kwargs):
+            raise ImportError('MultiTenantMiddleware is not available. Ensure `authentication.middleware` exists.')
 
 __all__ = [
     'MultiTenantMiddleware',
-    'AuthenticationRedirectMiddleware',
 ]

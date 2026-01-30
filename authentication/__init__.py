@@ -1,3 +1,1 @@
-"""
-Authentication module for managing user authentication, authorization, and permissions.
-"""
+default_app_config = 'authentication.apps.AuthenticationConfig'

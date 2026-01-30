@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Settings - ReportCardApp{% endblock %}
+
+{% block page_title %}Settings & Security{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Settings</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        {% if messages %}
+        <div class="alert alert-dismissible fade show" role="alert">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Change Password Section -->
+        <div class="glass-card p-4 mb-4">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="fw-bold mb-1">
+                        <i class="bi bi-shield-lock me-2"></i>Change Password
+                    </h3>
+                    <p class="text-muted">Keep your account secure with a strong password</p>
+                </div>
+            </div>
+
+            <form method="post" class="needs-validation">
+                {% csrf_token %}
+                <input type="hidden" name="setting_type" value="change_password">
+
+                <div class="mb-3">
+                    <label for="current_password" class="form-label fw-bold">Current Password</label>
+                    <input type="password" class="form-control form-control-modern" id="current_password" name="current_password" required>
+                    <small class="text-muted">Enter your current password for verification</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="new_password" class="form-label fw-bold">New Password</label>
+                    <input type="password" class="form-control form-control-modern" id="new_password" name="new_password" required>
+                    <small class="text-muted">At least 8 characters with a mix of letters, numbers, and symbols</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="confirm_password" class="form-label fw-bold">Confirm Password</label>
+                    <input type="password" class="form-control form-control-modern" id="confirm_password" name="confirm_password" required>
+                    <small class="text-muted">Re-enter your new password to confirm</small>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-gradient">
+                        <i class="bi bi-check-circle me-2"></i>Change Password
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Security Tips -->
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-shield-check me-2"></i>Security Tips
+            </h5>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex gap-2">
+                        <div>
+                            <i class="bi bi-shield-lock text-success" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold">Strong Password</h6>
+                            <small class="text-muted">Use at least 8 characters with uppercase, lowercase, numbers, and symbols</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex gap-2">
+                        <div>
+                            <i class="bi bi-exclamation-circle text-warning" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold">Avoid Common Passwords</h6>
+                            <small class="text-muted">Don't use birthdays, names, or sequential numbers</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex gap-2">
+                        <div>
+                            <i class="bi bi-lock text-info" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold">Change Regularly</h6>
+                            <small class="text-muted">Update your password every 3-6 months for better security</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex gap-2">
+                        <div>
+                            <i class="bi bi-eye-slash text-danger" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold">Never Share</h6>
+                            <small class="text-muted">Keep your password confidential and don't share it with anyone</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Info -->
+        <div class="glass-card p-4 mt-4">
+            <h5 class="fw-bold mb-3">
+                <i class="bi bi-info-circle me-2"></i>Account Information
+            </h5>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label text-muted small">Email Address</label>
+                    <p class="fw-bold">{{ user.email }}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label text-muted small">Username</label>
+                    <p class="fw-bold">{{ user.username }}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label text-muted small">Last Password Change</label>
+                    <p class="fw-bold">{{ user.last_login|date:"F d, Y" }}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label text-muted small">Account Status</label>
+                    <p class="fw-bold">
+                        {% if user.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control-modern {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control-modern:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+</style>
+{% endblock %}

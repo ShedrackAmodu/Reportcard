@@ -16,9 +16,6 @@ from authentication.permissions import (
     IsOwnerOrSchoolAdmin,
     IsStudentOwner,
     IsTeacherOrAdmin,
-    is_school_admin_or_superuser,
-    is_school_admin_or_teacher,
-    is_school_admin_or_superuser_or_teacher,
 )
 
 __all__ = [
@@ -30,7 +27,4 @@ __all__ = [
     'IsOwnerOrSchoolAdmin',
     'IsStudentOwner',
     'IsTeacherOrAdmin',
-    'is_school_admin_or_superuser',
-    'is_school_admin_or_teacher',
-    'is_school_admin_or_superuser_or_teacher',
 ]

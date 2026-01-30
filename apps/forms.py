@@ -10,7 +10,15 @@ Import from authentication.forms:
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from .models import School, User, ClassSection, Subject, GradingScale, StudentEnrollment, GradingPeriod, Grade, Attendance, UserApplication, SchoolProfile, SupportTicket, ReportTemplate, TemplateSection, TemplateField
+from .models import (
+    School, User, ClassSection, Subject, GradingScale, StudentEnrollment,
+    GradingPeriod, Grade, Attendance, UserApplication, SchoolProfile,
+    SupportTicket, ReportTemplate, TemplateSection, TemplateField
+)
+from .base_forms import (
+    BaseSchoolForm, BaseTeacherFilterForm, BaseStudentFilterForm, BaseMultiSchoolFilterForm
+)
+from authentication.forms import UserApplicationForm
 
 
 class SchoolForm(forms.ModelForm):
@@ -38,21 +46,23 @@ class SchoolForm(forms.ModelForm):
 
     def clean_name(self):
         name = self.cleaned_data.get('name')
-        if name:
-            # Strip whitespace and normalize
-            name = name.strip()
-            if len(name) < 2:
-                raise forms.ValidationError('School name must be at least 2 characters long.')
-            if len(name) > 255:
-                raise forms.ValidationError('School name cannot exceed 255 characters.')
-            
-            # Check for duplicates (case-insensitive)
-            existing_school = School.objects.filter(name__iexact=name)
-            if self.instance.pk:
-                existing_school = existing_school.exclude(pk=self.instance.pk)
-            
-            if existing_school.exists():
-                raise forms.ValidationError('A school with this name already exists. Please choose a different name.')
+        if not name:
+            raise forms.ValidationError('School name is required.')
+        
+        # Strip whitespace and normalize
+        name = name.strip()
+        if len(name) < 2:
+            raise forms.ValidationError('School name must be at least 2 characters long.')
+        if len(name) > 255:
+            raise forms.ValidationError('School name cannot exceed 255 characters.')
+        
+        # Check for duplicates (case-insensitive)
+        existing_school = School.objects.filter(name__iexact=name)
+        if self.instance.pk:
+            existing_school = existing_school.exclude(pk=self.instance.pk)
+        
+        if existing_school.exists():
+            raise forms.ValidationError('A school with this name already exists. Please choose a different name.')
         
         return name
 
@@ -85,40 +95,19 @@ class UserForm(forms.ModelForm):
         return user
 
 
-class ClassSectionForm(forms.ModelForm):
+class ClassSectionForm(BaseTeacherFilterForm):
     class Meta:
         model = ClassSection
         fields = ['name', 'grade_level', 'teacher', 'school']
 
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-        # Filter schools and teachers based on user role
-        if self.request:
-            if self.request.user.role == 'super_admin':
-                pass  # Can see all schools and teachers
-            else:
-                self.fields['school'].queryset = School.objects.filter(id=self.request.user.school.id)
-                # Filter teachers to only those from the same school
-                self.fields['teacher'].queryset = User.objects.filter(school=self.request.user.school, role='teacher')
 
-
-class SubjectForm(forms.ModelForm):
+class SubjectForm(BaseSchoolForm):
     class Meta:
         model = Subject
         fields = ['name', 'code', 'description', 'school']
 
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-        if self.request:
-            if self.request.user.role == 'super_admin':
-                pass
-            else:
-                self.fields['school'].queryset = School.objects.filter(id=self.request.user.school.id)
 
-
-class GradingScaleForm(forms.ModelForm):
+class GradingScaleForm(BaseSchoolForm):
     class Meta:
         model = GradingScale
         fields = ['name', 'scale_type', 'ranges', 'school']
@@ -126,60 +115,22 @@ class GradingScaleForm(forms.ModelForm):
             'ranges': forms.Textarea(attrs={'rows': 10, 'placeholder': 'JSON grading ranges e.g., [{"grade": "A", "min_score": 90, "max_score": 100}]'}),
         }
 
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-        if self.request:
-            if self.request.user.role == 'super_admin':
-                pass
-            else:
-                self.fields['school'].queryset = School.objects.filter(id=self.request.user.school.id)
 
-
-class StudentEnrollmentForm(forms.ModelForm):
+class StudentEnrollmentForm(BaseMultiSchoolFilterForm):
     class Meta:
         model = StudentEnrollment
         fields = ['student', 'class_section', 'school']
 
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-        if self.request:
-            if self.request.user.role == 'super_admin':
-                # Filter students and classes by school when selected
-                if self.instance and self.instance.school:
-                    self.fields['student'].queryset = User.objects.filter(school=self.instance.school, role='student')
-                    self.fields['class_section'].queryset = ClassSection.objects.filter(school=self.instance.school)
-                else:
-                    self.fields['student'].queryset = User.objects.filter(role='student')
-                    self.fields['class_section'].queryset = ClassSection.objects.all()
-            else:
-                school = self.request.user.school
-                self.fields['student'].queryset = User.objects.filter(school=school, role='student')
-                self.fields['class_section'].queryset = ClassSection.objects.filter(school=school)
-                self.fields['school'].initial = school
-                self.fields['school'].widget = forms.HiddenInput()
 
-
-class GradingPeriodForm(forms.ModelForm):
+class GradingPeriodForm(BaseSchoolForm):
     class Meta:
         model = GradingPeriod
         fields = ['name', 'school', 'start_date', 'end_date']
 
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-        if self.request:
-            if self.request.user.role == 'super_admin':
-                pass
-            else:
-                self.fields['school'].queryset = School.objects.filter(id=self.request.user.school.id)
 
-
-class GradeForm(forms.ModelForm):
+class GradeForm(BaseMultiSchoolFilterForm):
     auto_calculate = forms.BooleanField(
-        required=False,
-        initial=True,
+        required=False, initial=True,
         label="Auto-calculate letter grade",
         help_text="Uncheck to manually set letter grade (override)"
     )
@@ -192,20 +143,7 @@ class GradeForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
-        if self.request:
-            if self.request.user.role == 'super_admin':
-                pass
-            else:
-                school = self.request.user.school
-                self.fields['student'].queryset = User.objects.filter(school=school, role='student')
-                self.fields['subject'].queryset = Subject.objects.filter(school=school)
-                self.fields['grading_period'].queryset = GradingPeriod.objects.filter(school=school)
-                self.fields['school'].initial = school
-                self.fields['school'].widget = forms.HiddenInput()
-
-        # If editing existing grade, show override status
         if self.instance and self.instance.pk:
             self.fields['auto_calculate'].initial = not self.instance.is_override
 
@@ -216,16 +154,12 @@ class GradeForm(forms.ModelForm):
         auto_calculate = cleaned_data.get('auto_calculate', True)
         school = cleaned_data.get('school') or (self.request.user.school if hasattr(self, 'request') else None)
 
-        # Set override flag based on auto_calculate
         cleaned_data['is_override'] = not auto_calculate
 
-        # If auto-calculate is enabled and score is provided, calculate letter grade
         if auto_calculate and score is not None:
             try:
-                # Get the first grading scale for the school
                 grading_scale = GradingScale.objects.filter(school=school).first()
                 if grading_scale and grading_scale.ranges:
-                    # Sort ranges by min_score descending to check highest grades first
                     sorted_ranges = sorted(grading_scale.ranges, key=lambda x: x.get('min_score', 0), reverse=True)
                     for grade_range in sorted_ranges:
                         min_score = grade_range.get('min_score', 0)
@@ -234,17 +168,12 @@ class GradeForm(forms.ModelForm):
                             cleaned_data['letter_grade'] = grade_range.get('grade', '')
                             break
             except (GradingScale.DoesNotExist, KeyError, TypeError, AttributeError):
-                pass  # Keep letter_grade as provided if calculation fails
-
-        # If manual override is enabled, keep the manually entered letter grade
-        elif not auto_calculate and letter_grade:
-            # Keep the manually entered grade
-            pass
+                pass
 
         return cleaned_data
 
 
-class AttendanceForm(forms.ModelForm):
+class AttendanceForm(BaseMultiSchoolFilterForm):
     class Meta:
         model = Attendance
         fields = ['student', 'class_section', 'date', 'status', 'notes', 'school']
@@ -253,46 +182,10 @@ class AttendanceForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 2}),
         }
 
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-        if self.request:
-            if self.request.user.role == 'super_admin':
-                pass
-            else:
-                school = self.request.user.school
-                self.fields['student'].queryset = User.objects.filter(school=school, role='student')
-                self.fields['class_section'].queryset = ClassSection.objects.filter(school=school)
-                self.fields['school'].initial = school
-                self.fields['school'].widget = forms.HiddenInput()
 
 
-class UserApplicationForm(forms.ModelForm):
-    class Meta:
-        model = UserApplication
-        fields = ['username', 'email', 'first_name', 'last_name', 'role', 'school']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Filter role choices - students can register directly, others need approval
-        self.fields['role'].choices = [
-            choice for choice in User.ROLE_CHOICES
-            if choice[0] in ['admin', 'teacher', 'student']
-        ]
 
-        # Super admin can see all schools, others only their school
-        if hasattr(self, 'request') and self.request.user.role != 'super_admin':
-            self.fields['school'].queryset = School.objects.filter(id=self.request.user.school.id)
-
-    def clean_school(self):
-        school = self.cleaned_data.get('school')
-        role = self.cleaned_data.get('role')
-        
-        # All users must select a school during registration
-        if not school:
-            raise forms.ValidationError('School selection is required for all users during registration.')
-        
-        return school
 
 
 class ApplicationReviewForm(forms.Form):

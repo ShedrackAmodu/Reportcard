@@ -14,9 +14,9 @@ Generate and manage student report cards. View academic performance across gradi
 {% endblock %}
 
 {% block page_actions %}
-<div class="d-flex gap-2">
-    <a href="{% url 'report_card_list' %}" class="btn btn-gradient">
-        <i class="bi bi-plus-circle me-2"></i>Generate Report Card
+<div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'report_card_generate' %}" class="btn btn-gradient">
+        <i class="bi bi-plus-circle me-2"></i>Generate Report Cards
     </a>
     <div class="dropdown">
         <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -30,9 +30,19 @@ Generate and manage student report cards. View academic performance across gradi
             {% endfor %}
         </ul>
     </div>
-    <button class="btn btn-outline-success" onclick="exportReportCardsPDF()">
-        <i class="bi bi-download me-2"></i>Export PDF
-    </button>
+    <div class="dropdown">
+        <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-download me-2"></i>Export
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="exportReportCardsPDF()">
+                <i class="bi bi-file-pdf me-2"></i>Export PDF
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportReportCardsExcel()">
+                <i class="bi bi-file-earmark-spreadsheet me-2"></i>Export Excel
+            </a></li>
+        </ul>
+    </div>
 </div>
 {% endblock %}
 
@@ -102,26 +112,26 @@ Generate and manage student report cards. View academic performance across gradi
                                 <div class="fw-bold">{{ report_card.created_at|date:"M j, Y" }}</div>
                                 <small class="text-muted">{{ report_card.created_at|time:"H:i" }}</small>
                             </td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{% url 'report_card_pdf' report_card.student.id %}" class="btn btn-sm btn-outline-primary" title="View Report Card">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    <a href="{% url 'report_card_pdf' report_card.student.id %}" class="btn btn-sm btn-outline-success" title="Download PDF">
-                                        <i class="bi bi-download"></i>
-                                    </a>
-                                    {% if not report_card.is_published %}
-                                    <button type="button" class="btn btn-sm btn-outline-warning" onclick="publishReportCard({{ report_card.id }})" title="Publish">
-                                        <i class="bi bi-send"></i>
-                                    </button>
-                                    {% endif %}
-                                    <a href="#" class="btn btn-sm btn-outline-danger" 
-                                       onclick="confirmDelete('{{ report_card.student.get_full_name|default:report_card.student.username }} - {{ report_card.grading_period.name }}', 'deleteReportCard', {{ report_card.id }})" 
-                                       title="Delete">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
-                                </div>
-                            </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'report_card_pdf' report_card.student.id %}" class="btn btn-sm btn-outline-primary" title="View Report Card">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'report_card_pdf' report_card.student.id %}" class="btn btn-sm btn-outline-success" title="Download PDF">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                {% if not report_card.is_published %}
+                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="publishReportCard({{ report_card.id }})" title="Publish">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                   onclick="confirmDelete('{{ report_card.student.get_full_name|default:report_card.student.username }} - {{ report_card.grading_period.name }}', 'deleteReportCard', {{ report_card.id }})" 
+                                   title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -208,29 +218,96 @@ function confirmDelete(reportName, action, reportId) {
     document.getElementById('delete-report-name').textContent = reportName;
     
     if (action === 'deleteReportCard') {
-        // Store the report ID and implement custom delete if needed
+        // Set up the delete confirmation modal
         document.getElementById('delete-confirm-btn').href = '#';
         document.getElementById('delete-confirm-btn').onclick = function(e) {
             e.preventDefault();
-            alert('Delete functionality would be implemented with a custom view.');
+            deleteReportCard(reportId);
         };
     }
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 
 function publishReportCard(reportId) {
-    alert('Publish functionality would be implemented with a custom view.');
+    if (confirm('Are you sure you want to publish this report card?')) {
+        // Show loading state
+        const publishBtn = event.currentTarget || event.target;
+        const originalText = publishBtn.innerHTML;
+        publishBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Publishing...';
+        publishBtn.disabled = true;
+        
+        // Make AJAX request to publish
+        fetch(`/report-cards/publish/${reportId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload the page to show updated status
+                location.reload();
+            } else {
+                alert('Failed to publish report card: ' + (data.error || 'Unknown error'));
+                publishBtn.innerHTML = originalText;
+                publishBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while publishing the report card.');
+            publishBtn.innerHTML = originalText;
+            publishBtn.disabled = false;
+        });
+    }
+}
+
+function deleteReportCard(reportId) {
+    // Make AJAX request to delete
+    fetch(`/report-cards/delete/${reportId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal and reload page
+            new bootstrap.Modal(document.getElementById('deleteModal')).hide();
+            location.reload();
+        } else {
+            alert('Failed to delete report card: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while deleting the report card.');
+    });
 }
 
 function exportReportCardsPDF() {
+    // Get selected report card IDs
+    const selectedIds = getSelectedReportCardIds();
+    if (selectedIds.length === 0) {
+        alert('Please select at least one report card to export.');
+        return;
+    }
+    
     // Show loading state
-    const exportBtn = event.target;
+    const exportBtn = event.currentTarget || event.target;
     const originalText = exportBtn.innerHTML;
     exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
     exportBtn.disabled = true;
     
-    // Trigger export - Using a generic approach since this is a list export
-    alert('Export functionality would be implemented with a custom view.');
+    // Build URL with selected IDs
+    const url = `/report-cards/export/pdf/?report_card_ids=${selectedIds.join(',')}`;
+    
+    // Trigger export
+    window.open(url, '_blank');
     
     // Reset button after delay
     setTimeout(() => {
@@ -238,6 +315,74 @@ function exportReportCardsPDF() {
         exportBtn.disabled = false;
     }, 3000);
 }
+
+function exportReportCardsExcel() {
+    // Get selected report card IDs
+    const selectedIds = getSelectedReportCardIds();
+    if (selectedIds.length === 0) {
+        alert('Please select at least one report card to export.');
+        return;
+    }
+    
+    // Show loading state
+    const exportBtn = event.currentTarget || event.target;
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    exportBtn.disabled = true;
+    
+    // Build URL with selected IDs
+    const url = `/report-cards/export/excel/?report_card_ids=${selectedIds.join(',')}`;
+    
+    // Trigger export
+    window.open(url, '_blank');
+    
+    // Reset button after delay
+    setTimeout(() => {
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }, 3000);
+}
+
+function getSelectedReportCardIds() {
+    const checkboxes = document.querySelectorAll('input[name="report_card_ids"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// Add checkboxes for bulk selection
+document.addEventListener('DOMContentLoaded', function() {
+    // Add checkboxes to each row
+    const tableBody = document.querySelector('tbody');
+    if (tableBody) {
+        const rows = tableBody.querySelectorAll('tr');
+        rows.forEach(row => {
+            const firstCell = row.querySelector('td');
+            if (firstCell) {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'report_card_ids';
+                checkbox.value = row.querySelector('td:last-child .btn-group').querySelector('button[onclick*="publishReportCard"]').getAttribute('onclick').match(/\d+/)[0];
+                checkbox.className = 'form-check-input me-2';
+                firstCell.insertBefore(checkbox, firstCell.firstChild);
+            }
+        });
+        
+        // Add select all functionality
+        const selectAll = document.createElement('input');
+        selectAll.type = 'checkbox';
+        selectAll.className = 'form-check-input me-2';
+        selectAll.id = 'select-all-reports';
+        
+        const header = document.querySelector('thead th:first-child');
+        if (header) {
+            header.insertBefore(selectAll, header.firstChild);
+            
+            selectAll.addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('input[name="report_card_ids"]');
+                checkboxes.forEach(cb => cb.checked = this.checked);
+            });
+        }
+    }
+});
 
 // Add report card statistics
 document.addEventListener('DOMContentLoaded', function() {

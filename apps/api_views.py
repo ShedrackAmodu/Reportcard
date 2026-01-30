@@ -12,12 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 class PWAInstallationTrackingSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=['started', 'accepted', 'cancelled', 'error', 'success'])
+    event_type = serializers.CharField()
     timestamp = serializers.DateTimeField()
-    user_agent = serializers.CharField(required=False)
-    url = serializers.URLField(required=False)
+    user_agent = serializers.CharField(required=False, allow_blank=True)
+    platform = serializers.CharField(required=False, allow_blank=True)
     details = serializers.CharField(required=False, allow_blank=True)
-    install_state = serializers.DictField(required=False)
+    
+    # Also support legacy 'action' field for backward compatibility
+    action = serializers.ChoiceField(choices=['started', 'accepted', 'cancelled', 'error', 'success'], required=False)
 
 
 @api_view(['POST'])
@@ -57,7 +59,7 @@ def pwa_tracking_view(request):
         return Response({
             'status': 'success',
             'message': 'Installation event tracked successfully',
-            'action': validated_data.get('action'),
+            'event_type': validated_data.get('event_type'),
             'timestamp': validated_data.get('timestamp')
         }, status=status.HTTP_200_OK)
         
@@ -74,15 +76,45 @@ def pwa_tracking_view(request):
         )
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def pwa_status_view(request):
     """
     Get PWA installation status and recommendations.
     
+    Accepts both GET and POST requests. POST is used for tracking PWA status updates.
     Returns information about the current PWA installation state
     and provides recommendations for installation.
     """
+    # Handle POST requests (status tracking)
+    if request.method == 'POST':
+        try:
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+            else:
+                data = request.data
+            
+            # Log status update
+            logger.info(f"PWA Status Update: {data}")
+            
+            return Response({
+                'status': 'success',
+                'message': 'PWA status tracked successfully',
+                'data': data
+            }, status=status.HTTP_200_OK)
+        except json.JSONDecodeError:
+            return Response(
+                {'error': 'Invalid JSON format'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Error tracking PWA status: {str(e)}")
+            return Response(
+                {'error': 'Failed to track PWA status'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    # Handle GET requests (status check)
     # Get installation state from request or default
     install_state = request.GET.get('install_state', 'pending')
     
@@ -387,3 +419,30 @@ def check_installability_health():
         'reasons': [],
         'message': 'PWA meets all installability criteria'
     }
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def clear_offline_cache(request):
+    """
+    Clear all offline cache data for the user.
+    Called when user logs out to ensure no data persists.
+    """
+    try:
+        response_data = {
+            'status': 'success',
+            'message': 'Clear offline cache endpoint called. Client-side cache will be cleared.',
+            'instructions': [
+                'IndexedDB database will be cleared by client',
+                'Service worker cache will be cleared by client',
+                'LocalStorage will be cleared by client'
+            ]
+        }
+        return JsonResponse(response_data, status=200)
+    except Exception as e:
+        logger.error(f"Error in clear_offline_cache: {str(e)}")
+        return JsonResponse(
+            {'status': 'error', 'message': str(e)},
+            status=500
+        )

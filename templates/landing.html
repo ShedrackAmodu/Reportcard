@@ -4,7 +4,7 @@
 {% block extra_css %}
 <style>
     .hero-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #042b50ff 0%, #764ba2 100%);
         padding: 6rem 0;
         position: relative;
         overflow: hidden;
@@ -239,9 +239,7 @@
                     <button class="btn btn-secondary btn-lg rounded-pill px-4 install-app-btn" style="display: none;" onclick="installApp()">
                         <i class="bi bi-download install-icon me-2"></i>Install App
                     </button>
-                    <button class="btn mobile-download-btn btn-lg rounded-pill px-4" onclick="window.location.href='/download/apk/?type=android'">
-                        <i class="bi bi-phone install-icon me-2"></i>Get Mobile App
-                    </button>
+                  
                 </div>
                 <div class="mt-4 text-white-50 small">
                     <i class="bi bi-check-circle me-1"></i> No credit card required
@@ -418,34 +416,7 @@
         </div>
             </div>
             
-            <!-- Feature 5 -->
-            <div class="col-lg-4 col-md-6">
-                <div class="h-100 p-4 bg-white rounded-3 shadow-sm border">
-                    <div class="feature-icon">
-                        <i class="bi bi-shield-lock"></i>
-                    </div>
-                    <h4 class="text-center mb-3">Enterprise Security</h4>
-                    <p class="text-muted text-center mb-0">
-                        Bank-level security with encrypted data, role-based access control, and regular security audits.
-                    </p>
-                </div>
-            </div>
             
-            <!-- Feature 6 -->
-            <div class="col-lg-4 col-md-6">
-                <div class="h-100 p-4 bg-white rounded-3 shadow-sm border">
-                    <div class="feature-icon">
-                        <i class="bi bi-graph-up"></i>
-                    </div>
-                    <h4 class="text-center mb-3">Advanced Analytics</h4>
-                    <p class="text-muted text-center mb-0">
-                        Comprehensive dashboards and reports to track student performance and institutional metrics.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 
 <!-- How It Works -->
 <section class="py-6">
@@ -494,207 +465,10 @@
     </div>
 </section>
 
-<!-- Testimonials -->
-<section class="py-6 bg-light">
-    <div class="container">
-        <div class="row mb-5">
-            <div class="col-12 text-center">
-                <span class="badge bg-warning text-dark badge-modern mb-3">TESTIMONIALS</span>
-                <h2 class="display-5 fw-bold mb-3">Trusted by Educational Institutions</h2>
-                <p class="lead text-muted mx-auto" style="max-width: 700px;">
-                    See what school administrators and teachers are saying about ReportCardApp
-                </p>
-            </div>
-        </div>
-        
-        <div class="row g-4">
-            <div class="col-lg-4">
-                <div class="testimonial-card h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                            <i class="bi bi-person-fill"></i>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="mb-0">Dr. Sarah Johnson</h6>
-                            <small class="text-muted">Principal, Green Valley High</small>
-                        </div>
-                    </div>
-                    <p class="text-muted">
-                        "ReportCardApp has revolutionized how we manage student data. The offline capability is perfect for our teachers who work in remote areas."
-                    </p>
-                    <div class="text-warning">
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-lg-4">
-                <div class="testimonial-card h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                            <i class="bi bi-person-fill"></i>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="mb-0">Michael Chen</h6>
-                            <small class="text-muted">IT Director, City Schools District</small>
-                        </div>
-                    </div>
-                    <p class="text-muted">
-                        "The multi-tenant architecture allows us to manage 15 schools in our district from one platform. Security and data isolation are excellent."
-                    </p>
-                    <div class="text-warning">
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-half"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-lg-4">
-                <div class="testimonial-card h-100">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                            <i class="bi bi-person-fill"></i>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="mb-0">Emily Rodriguez</h6>
-                            <small class="text-muted">Teacher, Riverside Academy</small>
-                        </div>
-                    </div>
-                    <p class="text-muted">
-                        "I love the mobile app! I can input grades during my commute and everything syncs when I get to school. The interface is so intuitive."
-                    </p>
-                    <div class="text-warning">
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 
-<!-- Pricing Section -->
-<section class="py-6">
-    <div class="container">
-        <div class="row mb-5">
-            <div class="col-12 text-center">
-                <span class="badge bg-info badge-modern mb-3">PRICING</span>
-                <h2 class="display-5 fw-bold mb-3">Simple, Transparent Pricing</h2>
-                <p class="lead text-muted mx-auto" style="max-width: 700px;">
-                    Choose the plan that fits your institution's needs. All plans include core features.
-                </p>
-            </div>
-        </div>
-        
-        <div class="row justify-content-center g-4">
-            <div class="col-lg-4">
-                <div class="pricing-card h-100">
-                    <h4 class="text-center mb-3">Starter</h4>
-                    <div class="text-center mb-4">
-                        <span class="display-4 fw-bold">$49</span>
-                        <span class="text-muted">/month</span>
-                    </div>
-                    <ul class="list-unstyled mb-4">
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Up to 500 students</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Basic grade management</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>PDF report generation</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Email support</li>
-                        <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Advanced analytics</li>
-                        <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Custom integrations</li>
-                    </ul>
-                    <a href="{% url 'auth:register' %}" class="btn btn-outline-primary w-100 rounded-pill">Start Free Trial</a>
-                </div>
-            </div>
-            
-            <div class="col-lg-4">
-                <div class="pricing-card popular h-100">
-                    <h4 class="text-center mb-3">Professional</h4>
-                    <div class="text-center mb-4">
-                        <span class="display-4 fw-bold">$99</span>
-                        <span class="text-muted">/month</span>
-                    </div>
-                    <ul class="list-unstyled mb-4">
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Up to 2000 students</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Advanced grade management</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Custom report templates</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Priority support</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Advanced analytics</li>
-                        <li class="mb-2"><i class="bi bi-x-circle text-muted me-2"></i>Custom integrations</li>
-                    </ul>
-                    <a href="{% url 'auth:register' %}" class="btn btn-gradient w-100 rounded-pill">Start Free Trial</a>
-                </div>
-            </div>
-            
-            <div class="col-lg-4">
-                <div class="pricing-card h-100">
-                    <h4 class="text-center mb-3">Enterprise</h4>
-                    <div class="text-center mb-4">
-                        <span class="display-4 fw-bold">Custom</span>
-                        <span class="text-muted">/month</span>
-                    </div>
-                    <ul class="list-unstyled mb-4">
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Unlimited students</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Full feature access</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>White-label solutions</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>24/7 dedicated support</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Custom integrations</li>
-                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>API access</li>
-                    </ul>
-                    <a href="#contact" class="btn btn-outline-primary w-100 rounded-pill">Contact Sales</a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="text-center mt-5">
-            <p class="text-muted">
-                <i class="bi bi-shield-check text-success me-1"></i> All plans include 14-day free trial. No credit card required.
-            </p>
-        </div>
-    </div>
-</section>
 
-<!-- CTA Section -->
-<section class="cta-section py-6">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 text-center text-white">
-                <h2 class="display-5 fw-bold mb-4">Ready to Transform Your School Management?</h2>
-                <p class="lead mb-5 opacity-90">
-                    Join thousands of educational institutions already using ReportCardApp to streamline their operations and improve student outcomes.
-                </p>
-                <div class="d-flex flex-wrap justify-content-center gap-3">
-                    <a href="{% url 'auth:register' %}" class="btn btn-light btn-lg rounded-pill px-5 shadow-sm">
-                        <i class="bi bi-rocket-takeoff me-2"></i>Start Free Trial
-                    </a>
-                    <a href="{% url 'auth:login' %}" class="btn btn-outline-light btn-lg rounded-pill px-5">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>Login
-                    </a>
-                    <button class="btn btn-secondary btn-lg rounded-pill px-5 install-app-btn" style="display: none;" onclick="installApp()">
-                        <i class="bi bi-download install-icon me-2"></i>Install App
-                    </button>
-                    <button class="btn mobile-download-btn btn-lg rounded-pill px-5" onclick="window.location.href='/download/apk/?type=android'">
-                        <i class="bi bi-phone install-icon me-2"></i>Get Mobile App
-                    </button>
-                </div>
-                <p class="mt-4 opacity-75">
-                    <i class="bi bi-clock me-1"></i> Setup takes less than 5 minutes
-                    <i class="bi bi-headset ms-3 me-1"></i> 24/7 support available
-                    <i class="bi bi-shield-check ms-3 me-1"></i> SOC 2 compliant
-                </p>
-            </div>
-        </div>
-    </div>
-</section>
+
+
 
 <!-- Footer Links -->
 <div class="py-5 bg-dark text-white">

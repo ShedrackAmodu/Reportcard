@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Attendance - ReportCardApp{% endblock %}
+
+{% block page_title %}My Attendance{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">My Attendance</li>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <!-- Statistics Cards -->
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi bi-calendar3"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0">{{ total_sessions }}</h6>
+                <small class="text-muted">Total Sessions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0">{{ present_count }}</h6>
+                <small class="text-muted">Present</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-clock"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0">{{ late_count }}</h6>
+                <small class="text-muted">Late</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon danger">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0">{{ absent_count }}</h6>
+                <small class="text-muted">Absent</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <!-- Attendance Rate -->
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Attendance Rate</h5>
+                <span class="badge bg-primary badge-modern">{{ attendance_rate|floatformat:1 }}%</span>
+            </div>
+            <div class="progress" style="height: 25px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ attendance_rate }}%;" aria-valuenow="{{ attendance_rate }}" aria-valuemin="0" aria-valuemax="100">
+                    {{ attendance_rate|floatformat:1 }}%
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">
+                {% if attendance_rate >= 95 %}
+                <i class="bi bi-check-circle text-success me-1"></i>Excellent attendance! Keep it up!
+                {% elif attendance_rate >= 80 %}
+                <i class="bi bi-exclamation-circle text-warning me-1"></i>Good attendance. Try to improve further.
+                {% else %}
+                <i class="bi bi-x-circle text-danger me-1"></i>Attendance needs improvement. Please be more punctual.
+                {% endif %}
+            </small>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        {% if attendance_records %}
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-4">Attendance Records</h5>
+            
+            <div class="table-responsive">
+                <table class="table table-modern table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Class</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in attendance_records %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold">{{ record.date|date:"M d, Y" }}</div>
+                                <small class="text-muted">{{ record.date|date:"l" }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-info badge-modern">{{ record.class_section.name }}</span>
+                            </td>
+                            <td>
+                                {% if record.status == 'present' %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i>Present
+                                </span>
+                                {% elif record.status == 'absent' %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle me-1"></i>Absent
+                                </span>
+                                {% elif record.status == 'late' %}
+                                <span class="badge bg-warning">
+                                    <i class="bi bi-clock me-1"></i>Late
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ record.remarks|default:"—" }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="glass-card p-4">
+            <div class="empty-state text-center">
+                <div class="empty-state-icon mb-3">
+                    <i class="bi bi-calendar-check" style="font-size: 3rem; color: #6c757d;"></i>
+                </div>
+                <h5 class="text-muted">No attendance records yet</h5>
+                <p class="text-muted">Your attendance records will appear here</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

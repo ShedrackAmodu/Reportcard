@@ -1,28 +1,41 @@
 from datetime import datetime
 import os
+import re
+import csv
+import io
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.staticfiles import finders
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q
+from django.db.models import Q, Count, Avg, Min, Max, Case, When, FloatField, F
+from django.db.models.functions import Cast
+from django.urls import reverse
+from django.db import IntegrityError
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
-from django.http import HttpResponse
-from django.http import FileResponse, Http404
-from django.contrib.staticfiles import finders
+from django.http import HttpResponse, FileResponse, Http404
 from django.conf import settings
-from rest_framework import viewsets, status, serializers
+from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-import openpyxl
 
-
-from .models import School, User, ClassSection, Subject, GradingScale, StudentEnrollment, GradingPeriod, Grade, Attendance, UserApplication, SchoolProfile, SupportTicket
+from .models import (
+    School, User, ClassSection, Subject, GradingScale, StudentEnrollment,
+    GradingPeriod, Grade, Attendance, UserApplication, SchoolProfile,
+    SupportTicket, ReportCard, ReportTemplate
+)
 from .serializers import (
     SchoolSerializer, UserSerializer, ClassSectionSerializer,
-    SubjectSerializer, GradingScaleSerializer, StudentEnrollmentSerializer, GradingPeriodSerializer,
-    GradeSerializer, AttendanceSerializer, SchoolProfileSerializer, SupportTicketSerializer
+    SubjectSerializer, GradingScaleSerializer, StudentEnrollmentSerializer,
+    GradingPeriodSerializer, GradeSerializer, AttendanceSerializer,
+    SchoolProfileSerializer, SupportTicketSerializer, ReportCardSerializer
+)
+from .mixins import StandardViewSet, StudentOwnerFilterMixin, ExportMixin
+from .utils import (
+    PermissionHelper, AnalyticsHelper, ValidationHelper,
+    ExcelExporter, PDFExporter, CSVExporter
 )
 from authentication.permissions import (
     IsSuperAdmin, IsSchoolAdmin, IsSchoolMember, IsOwnerOrSchoolAdmin,
@@ -30,148 +43,127 @@ from authentication.permissions import (
 )
 
 
+# ViewSets using StandardViewSet base for code reuse
 class SchoolViewSet(viewsets.ModelViewSet):
     queryset = School.objects.all()
     serializer_class = SchoolSerializer
     permission_classes = [IsSuperAdmin]
 
-    def get_queryset(self):
-        return School.objects.all()
 
-
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(StandardViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsSchoolAdmin]
 
-    def get_queryset(self):
-        if self.request.user.role == 'super_admin':
-            return User.objects.all()
-        return User.objects.filter(school=self.request.school) if self.request.school else User.objects.none()
 
-    def get_permissions(self):
-        if self.action in ['retrieve', 'list']:
-            # Allow students to view their own profile, teachers/admins to view school users
-            return [IsStudent()]
-        return [IsSchoolAdmin()]
-
-
-class ClassSectionViewSet(viewsets.ModelViewSet):
+class ClassSectionViewSet(StandardViewSet):
     queryset = ClassSection.objects.all()
     serializer_class = ClassSectionSerializer
     permission_classes = [IsTeacherOrAdmin]
 
-    def get_queryset(self):
-        return ClassSection.objects.filter(school=self.request.school) if self.request.school else ClassSection.objects.none()
 
-
-class SubjectViewSet(viewsets.ModelViewSet):
+class SubjectViewSet(StandardViewSet):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
     permission_classes = [IsTeacherOrAdmin]
 
-    def get_queryset(self):
-        return Subject.objects.filter(school=self.request.school) if self.request.school else Subject.objects.none()
 
-
-class GradingScaleViewSet(viewsets.ModelViewSet):
+class GradingScaleViewSet(StandardViewSet):
     queryset = GradingScale.objects.all()
     serializer_class = GradingScaleSerializer
     permission_classes = [IsTeacherOrAdmin]
 
-    def get_queryset(self):
-        return GradingScale.objects.filter(school=self.request.school) if self.request.school else GradingScale.objects.none()
 
-
-class GradingPeriodViewSet(viewsets.ModelViewSet):
+class GradingPeriodViewSet(StandardViewSet):
     queryset = GradingPeriod.objects.all()
     serializer_class = GradingPeriodSerializer
     permission_classes = [IsTeacherOrAdmin]
 
-    def get_queryset(self):
-        return GradingPeriod.objects.filter(school=self.request.school) if self.request.school else GradingPeriod.objects.none()
 
-
-class StudentEnrollmentViewSet(viewsets.ModelViewSet):
+class StudentEnrollmentViewSet(StandardViewSet, StudentOwnerFilterMixin):
     queryset = StudentEnrollment.objects.all()
     serializer_class = StudentEnrollmentSerializer
     permission_classes = [IsTeacherOrAdmin]
 
-    def get_queryset(self):
-        return StudentEnrollment.objects.filter(school=self.request.school) if self.request.school else StudentEnrollment.objects.none()
-
     def get_permissions(self):
         if self.action in ['retrieve', 'list']:
-            # Students can view their own enrollments
             return [IsStudent(), IsStudentOwner()]
         return [IsTeacherOrAdmin()]
 
 
-class GradeViewSet(viewsets.ModelViewSet):
+class GradeViewSet(StandardViewSet, StudentOwnerFilterMixin):
     queryset = Grade.objects.all()
     serializer_class = GradeSerializer
     permission_classes = [IsTeacherOrAdmin]
 
-    def get_queryset(self):
-        return Grade.objects.filter(school=self.request.school) if self.request.school else Grade.objects.none()
-
     def get_permissions(self):
         if self.action in ['retrieve', 'list']:
-            # Students can view their own grades
             return [IsStudent(), IsStudentOwner()]
         return [IsTeacherOrAdmin()]
 
 
-class AttendanceViewSet(viewsets.ModelViewSet):
+class AttendanceViewSet(StandardViewSet, StudentOwnerFilterMixin):
     queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
     permission_classes = [IsTeacherOrAdmin]
 
-    def get_queryset(self):
-        return Attendance.objects.filter(school=self.request.school) if self.request.school else Attendance.objects.none()
-
     def get_permissions(self):
         if self.action in ['retrieve', 'list']:
-            # Students can view their own attendance
             return [IsStudent(), IsStudentOwner()]
         return [IsTeacherOrAdmin()]
 
 
-class SchoolProfileViewSet(viewsets.ModelViewSet):
+class SchoolProfileViewSet(StandardViewSet):
     queryset = SchoolProfile.objects.all()
     serializer_class = SchoolProfileSerializer
     permission_classes = [IsSchoolAdmin]
 
-    def get_queryset(self):
-        if self.request.user.role == 'super_admin':
-            return SchoolProfile.objects.all()
-        return SchoolProfile.objects.filter(school=self.request.school) if self.request.school else SchoolProfile.objects.none()
 
-
-class SupportTicketViewSet(viewsets.ModelViewSet):
+class SupportTicketViewSet(StandardViewSet):
     queryset = SupportTicket.objects.all()
     serializer_class = SupportTicketSerializer
     permission_classes = [IsSchoolMember]
 
     def get_queryset(self):
-        if self.request.user.role == 'super_admin':
+        queryset = super().get_queryset()
+        user = self.request.user
+        
+        if user.role == 'super_admin':
             return SupportTicket.objects.all()
-        elif self.request.user.role == 'admin':
-            return SupportTicket.objects.filter(school=self.request.school)
+        elif user.role == 'admin':
+            return SupportTicket.objects.filter(school=user.school)
         else:
-            # Regular users can only see their own tickets
-            return SupportTicket.objects.filter(created_by=self.request.user)
+            return SupportTicket.objects.filter(created_by=user)
+
+
+class ReportCardViewSet(StandardViewSet, StudentOwnerFilterMixin):
+    queryset = ReportCard.objects.all()
+    serializer_class = ReportCardSerializer
+    permission_classes = [IsTeacherOrAdmin]
+
+    def get_queryset(self):
+        queryset = ReportCard.objects.all()
+        user = self.request.user
+        
+        if user.role == 'super_admin':
+            return queryset
+        elif user.role == 'admin':
+            return queryset.filter(school=user.school)
+        elif user.role == 'teacher':
+            student_ids = StudentEnrollment.objects.filter(
+                class_section__teacher=user
+            ).values_list('student_id', flat=True)
+            return queryset.filter(student_id__in=student_ids, school=user.school)
+        else:
+            return queryset.filter(student=user)
 
     def get_permissions(self):
-        if self.action in ['create']:
-            # Anyone can create tickets
-            return [IsSchoolMember()]
-        elif self.action in ['list', 'retrieve']:
-            # Users can see their own tickets, admins can see school tickets
-            return [IsSchoolMember()]
-        else:
-            # Update and delete only for admins
-            return [IsSchoolAdmin()]
+        if self.action in ['list', 'retrieve']:
+            return [IsStudent(), IsStudentOwner()]
+        return [IsTeacherOrAdmin()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
 @api_view(['GET'])
@@ -183,15 +175,23 @@ def search_api_view(request):
     if not query or len(query) < 2:
         return Response({'results': []})
 
+    # Sanitize query to prevent injection attacks
+    import re
+    query = re.sub(r'[^\w\s\-@.]', '', query)
+    query = query.strip()[:100]  # Limit query length
+
+    if not query:
+        return Response({'results': []})
+
     results = []
 
-    # Search users
+    # Search users with proper parameterization
     users = User.objects.filter(
         Q(username__icontains=query) |
         Q(first_name__icontains=query) |
         Q(last_name__icontains=query) |
         Q(email__icontains=query)
-    )
+    ).select_related('school')
 
     # Filter by school permissions
     if request.user.role == 'super_admin':
@@ -207,6 +207,9 @@ def search_api_view(request):
             Q(school=request.user.school) |
             Q(id__in=teacher_students)
         )
+    else:
+        # Students can only see their own information
+        users = users.filter(id=request.user.id)
 
     users = users[:5]  # Limit results
     for user in users:
@@ -218,16 +221,22 @@ def search_api_view(request):
             'type': 'user'
         })
 
-    # Search class sections
+    # Search class sections with proper parameterization
     classes = ClassSection.objects.filter(
         Q(name__icontains=query) |
         Q(grade_level__icontains=query)
-    )
+    ).select_related('school')
 
     if request.user.role == 'super_admin':
         pass  # Can see all classes
     elif request.user.role in ['admin', 'teacher']:
         classes = classes.filter(school=request.user.school)
+    else:
+        # Students can only see their own classes
+        student_classes = StudentEnrollment.objects.filter(
+            student=request.user
+        ).values_list('class_section_id', flat=True)
+        classes = classes.filter(id__in=student_classes)
 
     classes = classes[:3]  # Limit results
     for cls in classes:
@@ -239,16 +248,22 @@ def search_api_view(request):
             'type': 'class'
         })
 
-    # Search subjects
+    # Search subjects with proper parameterization
     subjects = Subject.objects.filter(
         Q(name__icontains=query) |
         Q(code__icontains=query)
-    )
+    ).select_related('school')
 
     if request.user.role == 'super_admin':
         pass  # Can see all subjects
     elif request.user.role in ['admin', 'teacher']:
         subjects = subjects.filter(school=request.user.school)
+    else:
+        # Students can only see subjects they're enrolled in
+        student_subjects = Grade.objects.filter(
+            student=request.user
+        ).values_list('subject_id', flat=True).distinct()
+        subjects = subjects.filter(id__in=student_subjects)
 
     subjects = subjects[:3]  # Limit results
     for subject in subjects:
@@ -424,39 +439,227 @@ def push_sync_view(request):
     return Response(result)
 
 
-# Web Views
-def dashboard_view(request):
-    if not request.user.is_authenticated:
-        return redirect('landing')
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def offline_sync_batch_view(request):
+    """
+    Advanced offline sync endpoint for batched operations with conflict detection.
+    Handles create, update, delete operations and returns detailed results.
+    """
+    payload = request.data or {}
+    school_context = getattr(request, 'school', None)
     
+    if not school_context and request.user.school:
+        school_context = request.user.school
+
+    result = {
+        'success': True,
+        'timestamp': datetime.now().isoformat(),
+        'created': {},
+        'updated': {},
+        'deleted': {},
+        'errors': {},
+        'conflicts': {}
+    }
+
+    # Model mapping
+    models = {
+        'grades': (Grade, GradeSerializer),
+        'attendance': (Attendance, AttendanceSerializer),
+        'classsections': (ClassSection, ClassSectionSerializer),
+        'subjects': (Subject, SubjectSerializer),
+        'users': (User, UserSerializer),
+        'reportcards': (ReportCard, ReportCardSerializer),
+    }
+
+    for model_key, items in payload.items():
+        if model_key == '_meta' or not isinstance(items, list):
+            continue
+
+        model_key_lower = model_key.lower()
+        if model_key_lower not in models:
+            continue
+
+        Model, Serializer = models[model_key_lower]
+        result['created'].setdefault(model_key, [])
+        result['updated'].setdefault(model_key, [])
+        result['deleted'].setdefault(model_key, [])
+        result['errors'].setdefault(model_key, [])
+        result['conflicts'].setdefault(model_key, [])
+
+        for entry in items:
+            action = entry.get('action', 'update')
+            data = entry.get('data') or {}
+            object_id = data.get('id')
+
+            try:
+                # Enforce school context for security
+                if hasattr(Model, 'school') and school_context:
+                    data['school'] = school_context.id
+
+                if action == 'create':
+                    serializer = Serializer(data=data)
+                    if serializer.is_valid():
+                        obj = serializer.save()
+                        result['created'][model_key].append(Serializer(obj).data)
+                    else:
+                        result['errors'][model_key].append({
+                            'id': None,
+                            'action': action,
+                            'errors': serializer.errors
+                        })
+
+                elif action == 'update':
+                    if not object_id:
+                        result['errors'][model_key].append({
+                            'id': None,
+                            'action': action,
+                            'errors': {'detail': 'Missing id for update'}
+                        })
+                        continue
+
+                    try:
+                        obj = Model.objects.get(id=object_id)
+                        
+                        # Check for conflict
+                        incoming_updated_at = None
+                        try:
+                            if 'updated_at' in data:
+                                incoming_updated_at = datetime.fromisoformat(
+                                    data['updated_at'].replace('Z', '+00:00')
+                                ) if isinstance(data['updated_at'], str) else data['updated_at']
+                        except (ValueError, AttributeError, TypeError):
+                            pass
+
+                        server_updated_at = getattr(obj, 'updated_at', None)
+
+                        # Detect conflict: server has newer version
+                        if (server_updated_at and incoming_updated_at and 
+                            server_updated_at > incoming_updated_at):
+                            result['conflicts'][model_key].append({
+                                'id': object_id,
+                                'reason': 'server_newer',
+                                'server_updated_at': server_updated_at.isoformat(),
+                                'client_updated_at': data.get('updated_at'),
+                                'server_data': Serializer(obj).data
+                            })
+                        else:
+                            # No conflict, proceed with update
+                            serializer = Serializer(obj, data=data, partial=True)
+                            if serializer.is_valid():
+                                obj = serializer.save()
+                                result['updated'][model_key].append(Serializer(obj).data)
+                            else:
+                                result['errors'][model_key].append({
+                                    'id': object_id,
+                                    'action': action,
+                                    'errors': serializer.errors
+                                })
+
+                    except Model.DoesNotExist:
+                        # Object doesn't exist, try to create
+                        serializer = Serializer(data=data)
+                        if serializer.is_valid():
+                            obj = serializer.save()
+                            result['created'][model_key].append(Serializer(obj).data)
+                        else:
+                            result['errors'][model_key].append({
+                                'id': object_id,
+                                'action': 'create',
+                                'errors': serializer.errors
+                            })
+
+                elif action == 'delete':
+                    if not object_id:
+                        result['errors'][model_key].append({
+                            'id': None,
+                            'action': action,
+                            'errors': {'detail': 'Missing id for delete'}
+                        })
+                        continue
+
+                    try:
+                        obj = Model.objects.get(id=object_id)
+                        obj.delete()
+                        result['deleted'][model_key].append({'id': object_id})
+                    except Model.DoesNotExist:
+                        # Already deleted
+                        result['deleted'][model_key].append({'id': object_id})
+
+                else:
+                    result['errors'][model_key].append({
+                        'id': object_id,
+                        'action': action,
+                        'errors': {'detail': 'Unknown action'}
+                    })
+
+            except Exception as e:
+                result['errors'][model_key].append({
+                    'id': object_id,
+                    'action': action,
+                    'errors': {'detail': str(e)}
+                })
+
+    return Response(result)
+
+
+# Web Views
+@login_required
+def dashboard_view(request):
+    """
+    Dashboard view with optimized queries and caching.
+    Shows user-specific dashboard based on role and permissions.
+    """
     user = request.user
     context = {
         'user': user,
         'role': user.role,
     }
 
-    if user.role == 'super_admin':
-        cache_key_schools = 'schools_count'
-        cache_key_users = 'users_count'
-        context['schools_count'] = cache.get(cache_key_schools, School.objects.count())
-        context['users_count'] = cache.get(cache_key_users, User.objects.count())
-        # Cache for 5 minutes
-        cache.set(cache_key_schools, context['schools_count'], 300)
-        cache.set(cache_key_users, context['users_count'], 300)
-    elif user.school:
-        context['school'] = user.school
-        cache_key_classes = f'classes_count_{user.school.id}'
-        cache_key_subjects = f'subjects_count_{user.school.id}'
-        cache_key_students = f'students_count_{user.school.id}'
-        context['classes_count'] = cache.get(cache_key_classes, ClassSection.objects.filter(school=user.school).count())
-        context['subjects_count'] = cache.get(cache_key_subjects, Subject.objects.filter(school=user.school).count())
-        context['students_count'] = cache.get(cache_key_students, StudentEnrollment.objects.filter(school=user.school).count())
-        # Cache for 5 minutes
-        cache.set(cache_key_classes, context['classes_count'], 300)
-        cache.set(cache_key_subjects, context['subjects_count'], 300)
-        cache.set(cache_key_students, context['students_count'], 300)
+    try:
+        if user.role == 'super_admin':
+            # Super admin sees global statistics
+            cache_key_schools = 'schools_count'
+            cache_key_users = 'users_count'
+            context['schools_count'] = cache.get(cache_key_schools, School.objects.count())
+            context['users_count'] = cache.get(cache_key_users, User.objects.count())
+            # Cache for 5 minutes
+            cache.set(cache_key_schools, context['schools_count'], 300)
+            cache.set(cache_key_users, context['users_count'], 300)
+        elif user.school:
+            # Regular users see school-specific statistics
+            context['school'] = user.school
+            cache_key_classes = f'classes_count_{user.school.id}'
+            cache_key_subjects = f'subjects_count_{user.school.id}'
+            cache_key_students = f'students_count_{user.school.id}'
+            
+            # Use select_related for optimized queries
+            context['classes_count'] = cache.get(cache_key_classes, 
+                ClassSection.objects.filter(school=user.school).count())
+            context['subjects_count'] = cache.get(cache_key_subjects, 
+                Subject.objects.filter(school=user.school).count())
+            context['students_count'] = cache.get(cache_key_students, 
+                StudentEnrollment.objects.filter(school=user.school).count())
+            
+            # Cache for 5 minutes
+            cache.set(cache_key_classes, context['classes_count'], 300)
+            cache.set(cache_key_subjects, context['subjects_count'], 300)
+            cache.set(cache_key_students, context['students_count'], 300)
 
-    return render(request, 'dashboard.html', context)
+        return render(request, 'dashboard.html', context)
+    
+    except Exception as e:
+        # Log error and return safe context
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error loading dashboard for user {user.username}: {str(e)}")
+        
+        # Return minimal context on error
+        return render(request, 'dashboard.html', {
+            'user': user,
+            'role': user.role,
+            'error': 'Unable to load dashboard statistics. Please try again later.'
+        })
 
 
 def landing_view(request):
@@ -647,10 +850,39 @@ def school_create(request):
     if request.method == 'POST':
         form = SchoolForm(request.POST)
         if form.is_valid():
+            # Extra safety: check duplicates server-side before saving
+            name = form.cleaned_data.get('name', '').strip()
+            if name and School.objects.filter(name__iexact=name).exists():
+                form.add_error('name', 'A school with this name already exists. Please choose a different name.')
+                # Display specific field errors to the user
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        if field == '__all__':
+                            messages.error(request, str(error))
+                        else:
+                            messages.error(request, f"{field.replace('_', ' ').title()}: {error}")
+                return render(request, 'schools/school_form.html', {
+                    'form': form,
+                    'title': 'Create School',
+                    'action': 'Create'
+                })
+
             try:
                 school = form.save()
                 messages.success(request, f'School "{school.name}" created successfully.')
-                return redirect('school_list')
+                # Redirect with refresh flag so client-side cache is refreshed
+                return redirect(reverse('school_list') + '?refresh=1')
+            except IntegrityError as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"IntegrityError creating school: {str(e)}", exc_info=True)
+                form.add_error('name', 'A school with this name already exists or there was a database constraint error.')
+                messages.error(request, 'A school with this name already exists. Please choose a different name.')
+                return render(request, 'schools/school_form.html', {
+                    'form': form,
+                    'title': 'Create School',
+                    'action': 'Create'
+                })
             except Exception as e:
                 # Log the error for debugging
                 import logging
@@ -701,7 +933,7 @@ def school_update(request, pk):
             try:
                 form.save()
                 messages.success(request, 'School updated successfully.')
-                return redirect('school_list')
+                return redirect(reverse('school_list') + '?refresh=1')
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
@@ -725,6 +957,7 @@ def school_update(request, pk):
 
 
 @login_required
+@login_required
 def school_delete(request, pk):
     if request.user.role != 'super_admin':
         messages.error(request, 'Access denied. Super admin required.')
@@ -734,7 +967,7 @@ def school_delete(request, pk):
     if request.method == 'POST':
         school.delete()
         messages.success(request, 'School deleted successfully.')
-        return redirect('school_list')
+        return redirect(reverse('school_list') + '?refresh=1')
     return render(request, 'schools/school_confirm_delete.html', {
         'school': school,
         'title': 'Delete School'
@@ -1576,12 +1809,37 @@ def grade_update(request, pk):
     from .forms import GradeForm
     grade = get_object_or_404(Grade, pk=pk)
 
-    # Check permissions
-    if request.user.role == 'admin' and grade.school != request.user.school:
-        messages.error(request, 'Access denied. Cannot edit grades from other schools.')
-        return redirect('grade_list')
-    elif request.user.role == 'teacher' and not grade.subject.class_sections.filter(teacher=request.user).exists():
-        messages.error(request, 'Access denied. Cannot edit grades for subjects you do not teach.')
+    # Enhanced permissions check with proper authorization
+    if request.user.role == 'super_admin':
+        # Super admin can edit any grade
+        pass
+    elif request.user.role == 'admin':
+        # Admin can only edit grades from their school
+        if grade.school != request.user.school:
+            messages.error(request, 'Access denied. Cannot edit grades from other schools.')
+            return redirect('grade_list')
+    elif request.user.role == 'teacher':
+        # Teacher can only edit grades for subjects they teach in their school
+        if grade.school != request.user.school:
+            messages.error(request, 'Access denied. Cannot edit grades from other schools.')
+            return redirect('grade_list')
+        
+        # Check if teacher teaches this subject
+        if not grade.subject.class_sections.filter(teacher=request.user).exists():
+            messages.error(request, 'Access denied. Cannot edit grades for subjects you do not teach.')
+            return redirect('grade_list')
+        
+        # Additional check: ensure teacher has access to this student's class
+        student_in_teacher_class = StudentEnrollment.objects.filter(
+            student=grade.student,
+            class_section__teacher=request.user
+        ).exists()
+        
+        if not student_in_teacher_class:
+            messages.error(request, 'Access denied. Cannot edit grades for students not in your classes.')
+            return redirect('grade_list')
+    else:
+        messages.error(request, 'Access denied. Insufficient privileges.')
         return redirect('grade_list')
 
     if request.method == 'POST':
@@ -1607,12 +1865,37 @@ def grade_delete(request, pk):
 
     grade = get_object_or_404(Grade, pk=pk)
 
-    # Check permissions
-    if request.user.role == 'admin' and grade.school != request.user.school:
-        messages.error(request, 'Access denied. Cannot delete grades from other schools.')
-        return redirect('grade_list')
-    elif request.user.role == 'teacher' and not grade.subject.class_sections.filter(teacher=request.user).exists():
-        messages.error(request, 'Access denied. Cannot delete grades for subjects you do not teach.')
+    # Enhanced permissions check with proper authorization
+    if request.user.role == 'super_admin':
+        # Super admin can delete any grade
+        pass
+    elif request.user.role == 'admin':
+        # Admin can only delete grades from their school
+        if grade.school != request.user.school:
+            messages.error(request, 'Access denied. Cannot delete grades from other schools.')
+            return redirect('grade_list')
+    elif request.user.role == 'teacher':
+        # Teacher can only delete grades for subjects they teach in their school
+        if grade.school != request.user.school:
+            messages.error(request, 'Access denied. Cannot delete grades from other schools.')
+            return redirect('grade_list')
+        
+        # Check if teacher teaches this subject
+        if not grade.subject.class_sections.filter(teacher=request.user).exists():
+            messages.error(request, 'Access denied. Cannot delete grades for subjects you do not teach.')
+            return redirect('grade_list')
+        
+        # Additional check: ensure teacher has access to this student's class
+        student_in_teacher_class = StudentEnrollment.objects.filter(
+            student=grade.student,
+            class_section__teacher=request.user
+        ).exists()
+        
+        if not student_in_teacher_class:
+            messages.error(request, 'Access denied. Cannot delete grades for students not in your classes.')
+            return redirect('grade_list')
+    else:
+        messages.error(request, 'Access denied. Insufficient privileges.')
         return redirect('grade_list')
 
     if request.method == 'POST':
@@ -2038,40 +2321,589 @@ def batch_report_card_pdf(request, class_id):
 
 @login_required
 def report_card_list(request):
+    if request.user.role not in ['super_admin', 'admin', 'teacher', 'student']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    try:
+        school = request.user.school if request.user.role != 'super_admin' else None
+
+        # Get report cards based on user role
+        report_cards = ReportCard.objects.select_related('student', 'grading_period', 'template', 'school')
+        
+        if request.user.role == 'super_admin':
+            # Super admin can see all report cards
+            pass
+        elif request.user.role == 'admin':
+            # Admin can only see report cards from their school
+            report_cards = report_cards.filter(school=school)
+        elif request.user.role == 'teacher':
+            # Teachers can only see report cards for students in their classes
+            student_ids = StudentEnrollment.objects.filter(
+                class_section__teacher=request.user
+            ).values_list('student_id', flat=True)
+            report_cards = report_cards.filter(student_id__in=student_ids, school=school)
+        elif request.user.role == 'student':
+            # Students can only see their own report cards
+            report_cards = report_cards.filter(student=request.user)
+
+        # Filter by student if specified
+        student_id = request.GET.get('student')
+        if student_id:
+            try:
+                student = User.objects.get(id=student_id, role='student')
+                # Verify user has permission to view this student's report cards
+                if request.user.role == 'admin' and student.school != request.user.school:
+                    messages.error(request, 'Access denied. Cannot view report cards for students from other schools.')
+                    return redirect('report_card_list')
+                elif request.user.role == 'teacher':
+                    if not StudentEnrollment.objects.filter(
+                        student=student,
+                        class_section__teacher=request.user
+                    ).exists() or student.school != request.user.school:
+                        messages.error(request, 'Access denied. Cannot view report cards for students you do not teach.')
+                        return redirect('report_card_list')
+                
+                report_cards = report_cards.filter(student_id=student_id)
+            except User.DoesNotExist:
+                messages.error(request, 'Student not found.')
+                return redirect('report_card_list')
+
+        # Filter by grading period if specified
+        grading_period_id = request.GET.get('grading_period')
+        if grading_period_id:
+            try:
+                grading_period = GradingPeriod.objects.get(id=grading_period_id)
+                # Verify user has permission to view this grading period's report cards
+                if request.user.role == 'admin' and grading_period.school != request.user.school:
+                    messages.error(request, 'Access denied. Cannot view report cards for grading periods from other schools.')
+                    return redirect('report_card_list')
+                elif request.user.role == 'teacher':
+                    if grading_period.school != request.user.school:
+                        messages.error(request, 'Access denied. Cannot view report cards for grading periods from other schools.')
+                        return redirect('report_card_list')
+                
+                report_cards = report_cards.filter(grading_period_id=grading_period_id)
+            except GradingPeriod.DoesNotExist:
+                messages.error(request, 'Grading period not found.')
+                return redirect('report_card_list')
+
+        # Filter by status if specified
+        status_filter = request.GET.get('status')
+        if status_filter:
+            if status_filter in ['draft', 'published', 'archived']:
+                report_cards = report_cards.filter(status=status_filter)
+            else:
+                messages.error(request, 'Invalid status filter.')
+                return redirect('report_card_list')
+
+        # Get available students for filtering
+        students = User.objects.filter(role='student')
+        if request.user.role == 'admin':
+            students = students.filter(school=school)
+        elif request.user.role == 'teacher':
+            student_ids = StudentEnrollment.objects.filter(
+                class_section__teacher=request.user
+            ).values_list('student_id', flat=True).distinct()
+            students = students.filter(id__in=student_ids)
+        elif request.user.role == 'student':
+            students = students.filter(id=request.user.id)
+
+        # Get available grading periods
+        grading_periods = GradingPeriod.objects.filter(school=school) if school else GradingPeriod.objects.all()
+        if request.user.role == 'teacher':
+            # Get grading periods that have grades from this teacher's subjects
+            teacher_subjects = Subject.objects.filter(class_sections__teacher=request.user)
+            grading_periods = GradingPeriod.objects.filter(
+                grades__subject__in=teacher_subjects
+            ).distinct()
+        elif request.user.role == 'student':
+            # Get grading periods that have grades for this student
+            grading_periods = GradingPeriod.objects.filter(
+                grades__student=request.user
+            ).distinct()
+
+        # Get available classes for filtering
+        class_sections = ClassSection.objects.filter(school=school) if school else ClassSection.objects.all()
+        if request.user.role == 'teacher':
+            class_sections = class_sections.filter(teacher=request.user)
+        elif request.user.role == 'student':
+            class_sections = ClassSection.objects.filter(
+                enrollments__student=request.user
+            ).distinct()
+
+        # Pagination
+        from django.core.paginator import Paginator
+        paginator = Paginator(report_cards, 20)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+        context = {
+            'report_cards': page_obj,
+            'students': students.order_by('last_name', 'first_name'),
+            'grading_periods': grading_periods,
+            'class_sections': class_sections,
+            'selected_student_id': student_id,
+            'selected_grading_period_id': grading_period_id,
+            'selected_status': status_filter,
+            'title': 'Report Cards'
+        }
+
+        return render(request, 'report_cards/report_card_list.html', context)
+    except Exception as e:
+        messages.error(request, f'An error occurred: {str(e)}')
+        return redirect('dashboard')
+
+
+@login_required
+def report_card_generate(request):
+    """Generate report cards for students"""
     if request.user.role not in ['super_admin', 'admin', 'teacher']:
         messages.error(request, 'Access denied. Insufficient privileges.')
         return redirect('dashboard')
 
     school = request.user.school if request.user.role != 'super_admin' else None
 
-    # Get students based on user role
+    if request.method == 'POST':
+        student_ids = request.POST.getlist('student_ids')
+        grading_period_id = request.POST.get('grading_period')
+        template_id = request.POST.get('template')
+        
+        if not student_ids or not grading_period_id or not template_id:
+            messages.error(request, 'Please select students, grading period, and template.')
+            return redirect('report_card_generate')
+
+        try:
+            grading_period = GradingPeriod.objects.get(id=grading_period_id)
+            template = ReportTemplate.objects.get(id=template_id, school=school)
+            
+            # Validate template is active
+            if not template.is_active:
+                messages.error(request, 'Selected template is not active.')
+                return redirect('report_card_generate')
+
+            success_count = 0
+            error_count = 0
+
+            for student_id in student_ids:
+                try:
+                    student = User.objects.get(id=student_id, role='student')
+                    
+                    # Check if student belongs to school
+                    if student.school != school:
+                        error_count += 1
+                        continue
+
+                    # Check if student has grades for this grading period
+                    grades = Grade.objects.filter(
+                        student=student,
+                        grading_period=grading_period
+                    )
+                    
+                    if not grades.exists():
+                        messages.warning(request, f'Student {student.get_full_name()} has no grades for this grading period.')
+                        continue
+
+                    # Create or update report card
+                    report_card, created = ReportCard.objects.get_or_create(
+                        student=student,
+                        grading_period=grading_period,
+                        template=template,
+                        defaults={
+                            'school': school,
+                            'created_by': request.user
+                        }
+                    )
+
+                    # Generate report card data
+                    report_card.generate_data()
+                    
+                    # Calculate average grade
+                    report_card.calculate_average_grade()
+                    
+                    # Calculate class rank
+                    report_card.get_class_rank()
+                    
+                    success_count += 1
+
+                except User.DoesNotExist:
+                    error_count += 1
+                    continue
+                except Exception as e:
+                    error_count += 1
+                    continue
+
+            if success_count > 0:
+                messages.success(request, f'Successfully generated {success_count} report cards.')
+            if error_count > 0:
+                messages.warning(request, f'Failed to generate {error_count} report cards.')
+
+            return redirect('report_card_list')
+
+        except (GradingPeriod.DoesNotExist, ReportTemplate.DoesNotExist) as e:
+            messages.error(request, 'Invalid grading period or template selected.')
+            return redirect('report_card_generate')
+
+    # Get available students
     students = User.objects.filter(role='student')
     if request.user.role == 'admin':
         students = students.filter(school=school)
     elif request.user.role == 'teacher':
-        # Teachers can only see students in their classes
         student_ids = StudentEnrollment.objects.filter(
             class_section__teacher=request.user
         ).values_list('student_id', flat=True).distinct()
         students = students.filter(id__in=student_ids)
 
-    # Filter by class if specified
-    class_id = request.GET.get('class_section')
-    if class_id:
-        enrollment_ids = StudentEnrollment.objects.filter(class_section_id=class_id).values_list('student_id', flat=True)
-        students = students.filter(id__in=enrollment_ids)
-
-    # Get available classes for filtering
-    class_sections = ClassSection.objects.filter(school=school) if school else ClassSection.objects.all()
+    # Get available grading periods
+    grading_periods = GradingPeriod.objects.filter(school=school) if school else GradingPeriod.objects.all()
     if request.user.role == 'teacher':
-        class_sections = class_sections.filter(teacher=request.user)
+        # Get grading periods that have grades from this teacher's subjects
+        teacher_subjects = Subject.objects.filter(class_sections__teacher=request.user)
+        grading_periods = GradingPeriod.objects.filter(
+            grades__subject__in=teacher_subjects
+        ).distinct()
 
-    return render(request, 'report_cards/report_card_list.html', {
+    # Get available templates
+    templates = ReportTemplate.objects.filter(school=school, is_active=True) if school else ReportTemplate.objects.filter(is_active=True)
+
+    context = {
         'students': students.order_by('last_name', 'first_name'),
-        'class_sections': class_sections,
-        'selected_class_id': class_id,
+        'grading_periods': grading_periods,
+        'templates': templates,
         'title': 'Generate Report Cards'
-    })
+    }
+
+    return render(request, 'report_cards/report_card_generate.html', context)
+
+
+@login_required
+def publish_report_card(request, report_card_id):
+    """Publish a report card"""
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    report_card = get_object_or_404(ReportCard, id=report_card_id)
+    
+    # Check permissions
+    if request.user.role == 'admin' and report_card.school != request.user.school:
+        messages.error(request, 'Access denied. Cannot publish report cards from other schools.')
+        return redirect('report_card_list')
+    elif request.user.role == 'teacher':
+        # Check if teacher can publish this student's report card
+        if not StudentEnrollment.objects.filter(
+            student=report_card.student,
+            class_section__teacher=request.user
+        ).exists():
+            messages.error(request, 'Access denied. Cannot publish report cards for students you do not teach.')
+            return redirect('report_card_list')
+        elif report_card.school != request.user.school:
+            messages.error(request, 'Access denied. Cannot publish report cards from other schools.')
+            return redirect('report_card_list')
+
+    # Publish the report card
+    report_card.publish(published_by=request.user)
+    messages.success(request, f'Report card for {report_card.student.get_full_name()} published successfully.')
+    
+    return redirect('report_card_list')
+
+
+@login_required
+def unpublish_report_card(request, report_card_id):
+    """Unpublish a report card"""
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    report_card = get_object_or_404(ReportCard, id=report_card_id)
+    
+    # Check permissions (same as publish)
+    if request.user.role == 'admin' and report_card.school != request.user.school:
+        messages.error(request, 'Access denied. Cannot unpublish report cards from other schools.')
+        return redirect('report_card_list')
+    elif request.user.role == 'teacher':
+        if not StudentEnrollment.objects.filter(
+            student=report_card.student,
+            class_section__teacher=request.user
+        ).exists():
+            messages.error(request, 'Access denied. Cannot unpublish report cards for students you do not teach.')
+            return redirect('report_card_list')
+        elif report_card.school != request.user.school:
+            messages.error(request, 'Access denied. Cannot unpublish report cards from other schools.')
+            return redirect('report_card_list')
+
+    # Unpublish the report card
+    report_card.unpublish()
+    messages.success(request, f'Report card for {report_card.student.get_full_name()} unpublished successfully.')
+    
+    return redirect('report_card_list')
+
+
+@login_required
+def delete_report_card(request, report_card_id):
+    """Delete a report card"""
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    report_card = get_object_or_404(ReportCard, id=report_card_id)
+    
+    # Check permissions (same as publish)
+    if request.user.role == 'admin' and report_card.school != request.user.school:
+        messages.error(request, 'Access denied. Cannot delete report cards from other schools.')
+        return redirect('report_card_list')
+    elif request.user.role == 'teacher':
+        if not StudentEnrollment.objects.filter(
+            student=report_card.student,
+            class_section__teacher=request.user
+        ).exists():
+            messages.error(request, 'Access denied. Cannot delete report cards for students you do not teach.')
+            return redirect('report_card_list')
+        elif report_card.school != request.user.school:
+            messages.error(request, 'Access denied. Cannot delete report cards from other schools.')
+            return redirect('report_card_list')
+
+    student_name = report_card.student.get_full_name()
+    grading_period_name = report_card.grading_period.name
+    
+    if request.method == 'POST':
+        report_card.delete()
+        messages.success(request, f'Report card for {student_name} ({grading_period_name}) deleted successfully.')
+        return redirect('report_card_list')
+
+    context = {
+        'report_card': report_card,
+        'student_name': student_name,
+        'grading_period_name': grading_period_name,
+        'title': 'Delete Report Card'
+    }
+
+    return render(request, 'report_cards/report_card_confirm_delete.html', context)
+
+
+@login_required
+def export_report_cards_pdf(request):
+    """Export report cards to PDF"""
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    school = request.user.school if request.user.role != 'super_admin' else None
+
+    # Get selected report cards
+    report_card_ids = request.GET.getlist('report_card_ids')
+    if not report_card_ids:
+        messages.error(request, 'Please select report cards to export.')
+        return redirect('report_card_list')
+
+    # Get report cards with proper permissions
+    report_cards = ReportCard.objects.filter(id__in=report_card_ids)
+    
+    if request.user.role == 'admin':
+        report_cards = report_cards.filter(school=school)
+    elif request.user.role == 'teacher':
+        student_ids = StudentEnrollment.objects.filter(
+            class_section__teacher=request.user
+        ).values_list('student_id', flat=True)
+        report_cards = report_cards.filter(student_id__in=student_ids, school=school)
+    else:
+        report_cards = report_cards.filter(student=request.user)
+
+    if not report_cards.exists():
+        messages.error(request, 'No report cards found or access denied.')
+        return redirect('report_card_list')
+
+    # Generate PDF
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from django.http import HttpResponse
+    from django.conf import settings
+    import io
+    import os
+
+    # Create PDF buffer
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Get school profile for branding
+    try:
+        school_profile = SchoolProfile.objects.get(school=school)
+        report_header = school_profile.report_header or f"{school.name}"
+        report_footer = school_profile.report_footer or "School Administration"
+        report_signature = school_profile.report_signature or "Authorized by Principal"
+    except SchoolProfile.DoesNotExist:
+        report_header = school.name if school else "ReportCardApp"
+        report_footer = "School Administration"
+        report_signature = "Authorized by Principal"
+
+    first_report = True
+    for report_card in report_cards:
+        if not first_report:
+            story.append(PageBreak())
+
+        # Get student data
+        enrollment = StudentEnrollment.objects.filter(
+            student=report_card.student,
+            class_section__enrollments__grading_period=report_card.grading_period
+        ).first()
+        
+        grades = report_card.get_grades_data()
+
+        # Header with school branding
+        story.append(Paragraph(f"<b>{report_header}</b>", styles['Title']))
+        story.append(Paragraph("<b>Report Card</b>", styles['Heading1']))
+        story.append(Spacer(1, 12))
+
+        # Student info
+        story.append(Paragraph(f"<b>Student Name:</b> {report_card.student.get_full_name()}", styles['Normal']))
+        story.append(Paragraph(f"<b>Student ID:</b> {report_card.student.username}", styles['Normal']))
+        if enrollment:
+            story.append(Paragraph(f"<b>Class:</b> {enrollment.class_section.name}", styles['Normal']))
+        story.append(Paragraph(f"<b>Grading Period:</b> {report_card.grading_period.name}", styles['Normal']))
+        story.append(Paragraph(f"<b>Academic Year:</b> {report_card.academic_year}", styles['Normal']))
+        story.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y')}", styles['Normal']))
+        story.append(Spacer(1, 20))
+
+        # Grades table
+        if grades:
+            data = [['Subject', 'Score', 'Grade', 'Comments']]
+            for grade in grades:
+                data.append([
+                    grade.subject.name,
+                    str(grade.score) if grade.score else '-',
+                    grade.letter_grade or '-',
+                    grade.comments or '-'
+                ])
+
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 14),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(table)
+        else:
+            story.append(Paragraph("No grades available.", styles['Normal']))
+
+        # Attendance summary
+        attendance_data = report_card.get_attendance_data()
+        story.append(Spacer(1, 10))
+        story.append(Paragraph("<b>Attendance Summary:</b>", styles['Heading3']))
+        story.append(Paragraph(f"Total Days: {attendance_data['total_days']}", styles['Normal']))
+        story.append(Paragraph(f"Present: {attendance_data['present_days']}", styles['Normal']))
+        story.append(Paragraph(f"Absent: {attendance_data['absent_days']}", styles['Normal']))
+        story.append(Paragraph(f"Late: {attendance_data['late_days']}", styles['Normal']))
+        story.append(Paragraph(f"Excused: {attendance_data['excused_days']}", styles['Normal']))
+        story.append(Paragraph(f"Attendance Rate: {attendance_data['attendance_percentage']}%", styles['Normal']))
+
+        # Average grade and rank
+        if report_card.average_grade:
+            story.append(Spacer(1, 10))
+            story.append(Paragraph(f"<b>Average Grade:</b> {report_card.average_grade}%", styles['Normal']))
+        if report_card.class_rank:
+            story.append(Paragraph(f"<b>Class Rank:</b> {report_card.class_rank}", styles['Normal']))
+
+        story.append(Spacer(1, 30))
+        story.append(Paragraph(f"<i>{report_footer}</i>", styles['Italic']))
+        story.append(Spacer(1, 10))
+        story.append(Paragraph(f"<i>{report_signature}</i>", styles['Italic']))
+
+        first_report = False
+
+    doc.build(story)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="report_cards.pdf"'
+
+    return response
+
+
+@login_required
+def export_report_cards_excel(request):
+    """Export report cards to Excel"""
+    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+        messages.error(request, 'Access denied. Insufficient privileges.')
+        return redirect('dashboard')
+
+    school = request.user.school if request.user.role != 'super_admin' else None
+
+    # Get selected report cards
+    report_card_ids = request.GET.getlist('report_card_ids')
+    if not report_card_ids:
+        messages.error(request, 'Please select report cards to export.')
+        return redirect('report_card_list')
+
+    # Get report cards with proper permissions
+    report_cards = ReportCard.objects.filter(id__in=report_card_ids)
+    
+    if request.user.role == 'admin':
+        report_cards = report_cards.filter(school=school)
+    elif request.user.role == 'teacher':
+        student_ids = StudentEnrollment.objects.filter(
+            class_section__teacher=request.user
+        ).values_list('student_id', flat=True)
+        report_cards = report_cards.filter(student_id__in=student_ids, school=school)
+    else:
+        report_cards = report_cards.filter(student=request.user)
+
+    if not report_cards.exists():
+        messages.error(request, 'No report cards found or access denied.')
+        return redirect('report_card_list')
+
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Report Cards'
+
+    # Headers
+    headers = ['Student Name', 'Student ID', 'Grading Period', 'Academic Year', 'Average Grade', 'Class Rank', 'Status', 'Generated At']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center')
+
+    # Data
+    for row_num, report_card in enumerate(report_cards, 2):
+        ws.cell(row=row_num, column=1, value=report_card.student.get_full_name())
+        ws.cell(row=row_num, column=2, value=report_card.student.username)
+        ws.cell(row=row_num, column=3, value=report_card.grading_period.name)
+        ws.cell(row=row_num, column=4, value=report_card.academic_year or '')
+        ws.cell(row=row_num, column=5, value=report_card.average_grade or '')
+        ws.cell(row=row_num, column=6, value=report_card.class_rank or '')
+        ws.cell(row=row_num, column=7, value=report_card.status.title())
+        ws.cell(row=row_num, column=8, value=report_card.created_at.strftime('%Y-%m-%d %H:%M:%S'))
+
+    # Auto-adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=report_cards.xlsx'
+    wb.save(response)
+    return response
 
 
 # Analytics Dashboard
@@ -2290,79 +3122,56 @@ def search_view(request):
 # Export Views
 @login_required
 def export_grades_excel(request):
-    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+    if not PermissionHelper.user_can_export(request.user):
         return HttpResponse('Unauthorized', status=403)
 
-    school = request.user.school if request.user.role != 'super_admin' else None
-
+    school = PermissionHelper.get_user_school(request.user)
     grades = Grade.objects.select_related('student', 'subject', 'grading_period', 'school')
+    
     if request.user.role == 'admin':
         grades = grades.filter(school=school)
     elif request.user.role == 'teacher':
         grades = grades.filter(school=request.user.school, subject__class_sections__teacher=request.user).distinct()
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = 'Grades'
-
-    # Headers
-    headers = ['Student ID', 'Student Name', 'Subject', 'Grading Period', 'Score', 'Letter Grade', 'Comments', 'School']
-    for col_num, header in enumerate(headers, 1):
-        ws.cell(row=1, column=col_num, value=header)
-
-    # Data
-    for row_num, grade in enumerate(grades, 2):
-        ws.cell(row=row_num, column=1, value=grade.student.username)
-        ws.cell(row=row_num, column=2, value=grade.student.get_full_name())
-        ws.cell(row=row_num, column=3, value=grade.subject.name)
-        ws.cell(row=row_num, column=4, value=grade.grading_period.name)
-        ws.cell(row=row_num, column=5, value=grade.score)
-        ws.cell(row=row_num, column=6, value=grade.letter_grade)
-        ws.cell(row=row_num, column=7, value=grade.comments)
-        ws.cell(row=row_num, column=8, value=grade.school.name)
-
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=grades.xlsx'
-    wb.save(response)
-    return response
+    exporter = ExcelExporter(
+        'Grades',
+        ['Student ID', 'Student Name', 'Subject', 'Grading Period', 'Score', 'Letter Grade', 'Comments', 'School']
+    )
+    
+    for grade in grades:
+        exporter.add_row([
+            grade.student.username, grade.student.get_full_name(), grade.subject.name,
+            grade.grading_period.name, grade.score, grade.letter_grade, grade.comments, grade.school.name
+        ])
+    
+    return exporter.get_response('grades')
 
 
 @login_required
 def export_attendance_excel(request):
-    if request.user.role not in ['super_admin', 'admin', 'teacher']:
+    if not PermissionHelper.user_can_export(request.user):
         return HttpResponse('Unauthorized', status=403)
 
-    school = request.user.school if request.user.role != 'super_admin' else None
-
+    school = PermissionHelper.get_user_school(request.user)
     attendances = Attendance.objects.select_related('student', 'class_section', 'school')
+    
     if request.user.role == 'admin':
         attendances = attendances.filter(school=school)
     elif request.user.role == 'teacher':
         attendances = attendances.filter(school=request.user.school, class_section__teacher=request.user)
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = 'Attendance'
-
-    # Headers
-    headers = ['Student ID', 'Student Name', 'Class Section', 'Date', 'Status', 'Notes', 'School']
-    for col_num, header in enumerate(headers, 1):
-        ws.cell(row=1, column=col_num, value=header)
-
-    # Data
-    for row_num, attendance in enumerate(attendances, 2):
-        ws.cell(row=row_num, column=1, value=attendance.student.username)
-        ws.cell(row=row_num, column=2, value=attendance.student.get_full_name())
-        ws.cell(row=row_num, column=3, value=attendance.class_section.name)
-        ws.cell(row=row_num, column=4, value=str(attendance.date))
-        ws.cell(row=row_num, column=5, value=attendance.status)
-        ws.cell(row=row_num, column=6, value=attendance.notes)
-        ws.cell(row=row_num, column=7, value=attendance.school.name)
-
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=attendance.xlsx'
-    wb.save(response)
-    return response
+    exporter = ExcelExporter(
+        'Attendance',
+        ['Student ID', 'Student Name', 'Class Section', 'Date', 'Status', 'Notes', 'School']
+    )
+    
+    for attendance in attendances:
+        exporter.add_row([
+            attendance.student.username, attendance.student.get_full_name(), attendance.class_section.name,
+            str(attendance.date), attendance.status, attendance.notes, attendance.school.name
+        ])
+    
+    return exporter.get_response('attendance')
 
 
 @login_required
@@ -2370,31 +3179,20 @@ def export_users_csv(request):
     if request.user.role not in ['super_admin', 'admin']:
         return HttpResponse('Unauthorized', status=403)
 
-    school = request.user.school if request.user.role == 'admin' else None
-
+    school = PermissionHelper.get_user_school(request.user)
     users = User.objects.all()
     if school:
         users = users.filter(school=school)
 
-    import csv
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename=users.csv'
-
-    writer = csv.writer(response)
-    writer.writerow(['ID', 'Username', 'First Name', 'Last Name', 'Email', 'Role', 'School'])
-
+    exporter = CSVExporter('users', ['ID', 'Username', 'First Name', 'Last Name', 'Email', 'Role', 'School'])
+    
     for user in users:
-        writer.writerow([
-            user.id,
-            user.username,
-            user.first_name,
-            user.last_name,
-            user.email,
-            user.role,
-            user.school.name if user.school else ''
+        exporter.add_row([
+            user.id, user.username, user.first_name, user.last_name, user.email,
+            user.role, user.school.name if user.school else ''
         ])
-
-    return response
+    
+    return exporter.get_response()
 
 
 # School Profile Management Views (White-Label Features)
@@ -2605,3 +3403,170 @@ def support_ticket_assign(request, pk):
         'staff_members': staff_members,
         'title': f'Assign Ticket: {ticket.title}'
     })
+
+
+# User Profile & Settings Views
+@login_required
+def user_profile(request):
+    """Display and manage user profile"""
+    user = request.user
+    
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type')
+        
+        if form_type == 'profile':
+            # Update basic profile info
+            user.first_name = request.POST.get('first_name', user.first_name)
+            user.last_name = request.POST.get('last_name', user.last_name)
+            user.email = request.POST.get('email', user.email)
+            
+            # Handle profile picture upload
+            if 'profile_picture' in request.FILES:
+                user.profile_picture = request.FILES['profile_picture']
+            
+            user.save()
+            messages.success(request, 'Profile updated successfully.')
+            return redirect('user_profile')
+    
+    context = {
+        'user': user,
+        'title': 'My Profile'
+    }
+    return render(request, 'users/user_profile.html', context)
+
+
+@login_required
+def user_settings(request):
+    """User settings and preferences"""
+    user = request.user
+    
+    if request.method == 'POST':
+        setting_type = request.POST.get('setting_type')
+        
+        if setting_type == 'change_password':
+            # Handle password change
+            current_password = request.POST.get('current_password')
+            new_password = request.POST.get('new_password')
+            confirm_password = request.POST.get('confirm_password')
+            
+            if not user.check_password(current_password):
+                messages.error(request, 'Current password is incorrect.')
+            elif new_password != confirm_password:
+                messages.error(request, 'New passwords do not match.')
+            elif len(new_password) < 8:
+                messages.error(request, 'Password must be at least 8 characters long.')
+            else:
+                user.set_password(new_password)
+                user.save()
+                messages.success(request, 'Password changed successfully.')
+                return redirect('auth:login')  # Redirect to login after password change
+    
+    context = {
+        'user': user,
+        'title': 'Settings & Security'
+    }
+    return render(request, 'users/user_settings.html', context)
+
+
+@login_required
+def help_center(request):
+    """Help center and support documentation"""
+    
+    context = {
+        'title': 'Help & Support'
+    }
+    return render(request, 'support/help_center.html', context)
+
+
+# Student Portal Views
+@login_required
+def student_grades(request):
+    """Display student's own grades"""
+    if request.user.role != 'student':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+    
+    student = request.user
+    grades = Grade.objects.filter(student=student).select_related(
+        'subject', 'grading_period'
+    ).order_by('-grading_period__end_date')
+    
+    # Add filtering by grading period if requested
+    grading_period_id = request.GET.get('grading_period')
+    if grading_period_id:
+        grades = grades.filter(grading_period_id=grading_period_id)
+    
+    grading_periods = GradingPeriod.objects.filter(
+        class_section__in=StudentEnrollment.objects.filter(student=student).values_list('class_section_id')
+    ).distinct().order_by('-end_date')
+    
+    context = {
+        'grades': grades,
+        'grading_periods': grading_periods,
+        'student': student,
+        'title': 'My Grades'
+    }
+    return render(request, 'students/student_grades.html', context)
+
+
+@login_required
+def student_attendance(request):
+    """Display student's own attendance records"""
+    if request.user.role != 'student':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+    
+    student = request.user
+    attendance_records = Attendance.objects.filter(student=student).select_related(
+        'class_section'
+    ).order_by('-date')
+    
+    # Calculate attendance statistics
+    total_sessions = attendance_records.count()
+    present_count = attendance_records.filter(status='present').count()
+    absent_count = attendance_records.filter(status='absent').count()
+    late_count = attendance_records.filter(status='late').count()
+    
+    attendance_rate = (present_count / total_sessions * 100) if total_sessions > 0 else 0
+    
+    context = {
+        'attendance_records': attendance_records,
+        'total_sessions': total_sessions,
+        'present_count': present_count,
+        'absent_count': absent_count,
+        'late_count': late_count,
+        'attendance_rate': attendance_rate,
+        'student': student,
+        'title': 'My Attendance'
+    }
+    return render(request, 'students/student_attendance.html', context)
+
+
+@login_required
+def student_report_cards(request):
+    """Display student's own report cards"""
+    if request.user.role != 'student':
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+    
+    student = request.user
+    report_cards = ReportCard.objects.filter(student=student).select_related(
+        'grading_period'
+    ).order_by('-created_at')
+    
+    # Filter by grading period if requested
+    grading_period_id = request.GET.get('grading_period')
+    if grading_period_id:
+        report_cards = report_cards.filter(grading_period_id=grading_period_id)
+    
+    grading_periods = GradingPeriod.objects.filter(
+        reportcard__student=student
+    ).distinct().order_by('-end_date')
+    
+    context = {
+        'report_cards': report_cards,
+        'grading_periods': grading_periods,
+        'student': student,
+        'title': 'My Report Cards'
+    }
+    return render(request, 'students/student_report_cards.html', context)

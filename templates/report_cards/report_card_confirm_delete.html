@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Report Card{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card card-danger">
+                <div class="card-header">
+                    <h3 class="card-title">Delete Report Card</h3>
+                </div>
+                <div class="card-body">
+                    <p>Are you sure you want to delete the report card for <strong>{{ student_name }}</strong> for the grading period <strong>{{ grading_period_name }}</strong>?</p>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This action cannot be undone. The report card will be permanently deleted.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Student:</strong> {{ student_name }}<br>
+                            <strong>Student ID:</strong> {{ report_card.student.username }}<br>
+                            <strong>Grading Period:</strong> {{ grading_period_name }}<br>
+                            <strong>Template:</strong> {{ report_card.template.name }}<br>
+                            <strong>Status:</strong> {{ report_card.get_status_display }}<br>
+                            <strong>Created:</strong> {{ report_card.created_at|date:"M d, Y H:i" }}
+                        </div>
+                        <div class="col-md-6">
+                            {% if report_card.average_grade %}
+                                <strong>Average Grade:</strong> {{ report_card.average_grade }}%<br>
+                            {% endif %}
+                            {% if report_card.class_rank %}
+                                <strong>Class Rank:</strong> {{ report_card.class_rank }}<br>
+                            {% endif %}
+                            {% if report_card.published_at %}
+                                <strong>Published:</strong> {{ report_card.published_at|date:"M d, Y H:i" }}<br>
+                                <strong>Published By:</strong> {{ report_card.published_by.get_full_name }}<br>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Delete Report Card
+                        </button>
+                        <a href="{% url 'report_card_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
