@@ -6,12 +6,18 @@ from .models import SSLPayment, SSLAdmissionPaymentVerfication
 class SSLPaymentAdmin(admin.ModelAdmin):
     list_display = (
         'transaction_id',
+        'gateway_reference',
+        'status',
         'payer',
         'received_amount',
         'pay_reason',
         'payer_mobile',
-        'payer_email'
+        'payer_email',
+        'verified_by',
+        'verified_at',
     )
+    list_filter = ('status', 'pay_reason', 'gateway_name')
+    search_fields = ('transaction_id', 'gateway_reference', 'payer', 'payer_mobile', 'payer_email')
 
 
 @admin.register(SSLAdmissionPaymentVerfication)

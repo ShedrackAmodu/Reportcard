@@ -314,3 +314,16 @@ TINYMCE_DEFAULT_CONFIG = {
     "alignright alignjustify | bullist numlist outdent indent | "
     "removeformat | help",
 }
+
+# Default grading scale (editable per school in deployment settings).
+RESULT_GRADE_SCALE = (
+    (75, 100, 'A1', 4.0, 'Excellent'),
+    (70, 74, 'B2', 3.6, 'Very Good'),
+    (65, 69, 'B3', 3.2, 'Good'),
+    (60, 64, 'C4', 2.8, 'Credit'),
+    (55, 59, 'C5', 2.4, 'Credit'),
+    (50, 54, 'C6', 2.0, 'Credit'),
+    (45, 49, 'D7', 1.6, 'Pass'),
+    (40, 44, 'E8', 1.0, 'Pass'),
+    (0, 39, 'F9', 0.0, 'Fail'),
+)

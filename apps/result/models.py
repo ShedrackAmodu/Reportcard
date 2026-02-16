@@ -62,13 +62,58 @@ class Result(TimeStampedModel):
         return f'{self.student} | {self.subject} | {self.total_marks}'
     
     def save(self, *args, **kwargs):
-        if self.theory_marks and self.practical_marks:
-            self.total_marks = self.practical_marks + self.theory_marks
-        elif self.practical_marks and not self.theory_marks:
-            self.total_marks = self.practical_marks
+        # Preserve existing behavior but correctly handle zero scores.
+        theory_marks = self.theory_marks if self.theory_marks is not None else None
+        practical_marks = self.practical_marks if self.practical_marks is not None else None
+        if theory_marks is None and practical_marks is None:
+            self.total_marks = None
         else:
-            self.total_marks = self.theory_marks
+            self.total_marks = (theory_marks or 0) + (practical_marks or 0)
         super().save(*args, **kwargs)
+
+    def get_grade_profile(self):
+        """
+        Return grade metadata for common Nigerian school report formats.
+        Schools can override with RESULT_GRADE_SCALE in Django settings using:
+        (min_mark, max_mark, grade, point, remark)
+        """
+        score = self.total_marks if self.total_marks is not None else 0
+        default_scale = (
+            (75, 100, 'A1', 4.0, 'Excellent'),
+            (70, 74, 'B2', 3.6, 'Very Good'),
+            (65, 69, 'B3', 3.2, 'Good'),
+            (60, 64, 'C4', 2.8, 'Credit'),
+            (55, 59, 'C5', 2.4, 'Credit'),
+            (50, 54, 'C6', 2.0, 'Credit'),
+            (45, 49, 'D7', 1.6, 'Pass'),
+            (40, 44, 'E8', 1.0, 'Pass'),
+            (0, 39, 'F9', 0.0, 'Fail'),
+        )
+        grade_scale = getattr(settings, 'RESULT_GRADE_SCALE', default_scale)
+        for minimum, maximum, grade, point, remark in grade_scale:
+            if minimum <= score <= maximum:
+                return {
+                    'grade': grade,
+                    'point': point,
+                    'remark': remark,
+                }
+        return {
+            'grade': 'N/A',
+            'point': 0.0,
+            'remark': 'Not Graded',
+        }
+
+    @property
+    def grade(self):
+        return self.get_grade_profile()['grade']
+
+    @property
+    def grade_point(self):
+        return self.get_grade_profile()['point']
+
+    @property
+    def remark(self):
+        return self.get_grade_profile()['remark']
 
 
 class SubjectGroup(TimeStampedModel):

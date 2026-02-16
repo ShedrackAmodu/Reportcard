@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 
 from apps.accounts.views import dashboard
+from apps.pages import pwa_views
 
 admin.site.site_header = 'Django Administration'
 admin.site.site_title = 'Django Site Admin'
@@ -62,6 +63,8 @@ urlpatterns = [
     # API URLS
     path('api/', include('apps.articles.api.routes')),
     path('upload/', include('django_file_form.urls')),
+    path('service-worker.js', pwa_views.service_worker, name='service_worker'),
+    path('offline/', pwa_views.offline, name='offline'),
 ]
 
 urlpatterns += static(

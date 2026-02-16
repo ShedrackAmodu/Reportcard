@@ -1,0 +1,53 @@
+/* Mobile-first UX refinements for forms, tables, and dashboard cards */
+
+html,
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  border-radius: 0.6rem;
+}
+
+.table-responsive {
+  border-radius: 0.5rem;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+select,
+textarea,
+.form-control {
+  min-height: 42px;
+}
+
+.btn {
+  min-height: 40px;
+}
+
+@media (max-width: 991.98px) {
+  .main-content {
+    padding: 0.75rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.9rem;
+  }
+
+  .table {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .table-responsive table {
+    min-width: 640px;
+  }
+
+  .card-body {
+    padding: 0.9rem;
+  }
+}
+

@@ -43,7 +43,8 @@ def online_admission_payment(request, pk):
     """ 
     Generates nonce and renders payment form
     """
-     
+    registrant = AdmissionStudent.objects.get(pk=pk)
+
     braintree_env = braintree.Environment.Sandbox
 
     # Configure braintree payment

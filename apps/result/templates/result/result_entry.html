@@ -13,7 +13,7 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'index_view' %}">Dashboard</a></li>
         <li class="breadcrumb-item">
-            <a href="{% url 'result:result_home' %}">Results</a>
+            <a href="{% url 'result:result' %}">Results</a>
         </li>
         <li class="breadcrumb-item active" aria-current="page">Entry</li>
     </ol>
@@ -89,11 +89,17 @@
                                 </td>
                                 <td>
                                     <input type="number" 
-                                        name="practical_marks.{{ subject.pk }}">
+                                        name="practical_marks.{{ subject.pk }}"
+                                        min="0"
+                                        max="{{ subject.practical_marks }}"
+                                        class="form-control form-control-sm">
                                 </td>
                                 <td>
                                     <input type="number" 
-                                        name="theory_marks.{{ subject.pk }}">
+                                        name="theory_marks.{{ subject.pk }}"
+                                        min="0"
+                                        max="{{ subject.theory_marks }}"
+                                        class="form-control form-control-sm">
                                 </td>
                             </tr>
                         {% endfor %}

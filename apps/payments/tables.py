@@ -12,9 +12,13 @@ class SSLPaymentTable(tables.Table):
         fields = (
             'created',
             'transaction_id',
+            'gateway_reference',
+            'status',
             'payer',
             'received_amount',
             'pay_reason',
             'payer_mobile',
-            'payer_city'
+            'payer_city',
+            'verified_by',
+            'verified_at',
         )

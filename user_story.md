@@ -26,4 +26,4 @@
 
 ## 6. General Visitor
 - **As a visitor**, I want to view the school's landing page, read blog articles, and browse notices without logging in.
-- **As a visitor**, I want to contact the school or sign up for updates via the site.
+- **As a visitor**, I want to contact the school or sign up for updates via the  site.
